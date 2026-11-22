@@ -1,0 +1,47 @@
+# 架构与 Harness 对照
+
+本文解释当前实现。计划中的功能与验收条件见[开发路线](roadmap.md)。
+
+## 一次任务怎样运行
+
+1. `src/cli.ts` 解析任务文本、`--provider` 和 `--model`。
+2. `resolveConfig()` 合并 CLI 参数、环境变量和默认值，拒绝无效配置。
+3. `runTask()` 检查取消状态和空输入，把任务转换为一条 `user` 消息。
+4. 注入的 `ModelProvider.complete()` 接收模型名、消息列表和取消信号。
+5. CLI 输出返回文本；调用失败时输出错误并设置非零退出码。
+
+当前 CLI 只创建 `mock` 适配器，模拟响应只回显输入，不生成代码。
+
+## 模块职责
+
+| 模块 | 职责 |
+| --- | --- |
+| [cli.ts](../src/cli.ts) | 参数、终端输出和退出状态；将 Ctrl+C 转换为取消信号 |
+| [config.ts](../src/config.ts) | 一次性解析启动配置 |
+| [task.ts](../src/task.ts) | 把用户任务转换为模型请求，调用注入的适配器 |
+| [providers/types.ts](../src/providers/types.ts) | 定义协议无关的消息、请求、响应和适配器接口 |
+| [providers/mock.ts](../src/providers/mock.ts) | 无网络、无凭据的演示适配器 |
+| [errors.ts](../src/errors.ts) | 定义可以直接展示给用户的错误码与说明 |
+
+`runTask()` 接收适配器实例，不读取环境变量，也不依赖 HTTP、厂商 SDK 或 API 地址。测试中可以注入不同实现而不修改任务逻辑。
+
+## 请求与响应
+
+`ModelRequest` 包含 `model` 和只读 `messages`；消息包含 `role` 和字符串 `content`。`ModelResponse` 只包含 `text`。当前接口仅表示非流式文本调用，不包含工具调用、token 用量和厂商专有字段。
+
+适配器收到 `AbortSignal` 后负责终止自身进行中的工作。`runTask()` 在调用前和调用返回后都检查取消状态，因此取消后返回的结果不会被发布。适配器失败会向调用方传播，任务逻辑不把错误转换为成功响应。
+
+消息仅在本次进程内使用，没有持久化会话或历史恢复。
+
+## 从 DeepSeek Harness 参考了什么
+
+| Harness 的设计 | 本项目的落点 |
+| --- | --- |
+| 模型适配器隔离供应商协议 | `ModelProvider` 接口和 `providers/` 目录 |
+| 执行逻辑依赖服务接口 | `runTask()` 接收适配器实例 |
+| 启动时明确配置 | `resolveConfig()` 先解析，任务只接收具体参数 |
+| 能力逐步组合 | 每个 PR 增加一种可验证的能力 |
+
+Harness 的 Cordis 插件树、完整 Agent 循环和事件持久化有各自的职责。本项目当前通过显式依赖注入组织少量模块。工具循环和会话保存将在对应 PR 中建立自己的实现。
+
+参考源码位于原工作区的 `docs/architecture.md`、`packages/llm/llm/` 和 `packages/core/agent-loop/`。公开入口为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。本项目尚未复制 Harness 的实现代码或引入其运行时依赖。
