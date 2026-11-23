@@ -21,6 +21,9 @@ export class Conversation {
     return this.history.map(message => ({ ...message }));
   }
 
+  /** 已成功完成的问答轮数。 */
+  get turnCount(): number { return this.history.length / 2; }
+
   /** 清空已完成的问答；存在进行中的请求时失败。 */
   clear(): void {
     if (this.busy) { throw new AppError('CONVERSATION_BUSY', '请先等待或取消当前请求。'); }

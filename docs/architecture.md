@@ -4,9 +4,9 @@
 
 ## 一次任务怎样运行
 
-1. `my-coding-agent` 启动构建后的 `dist/cli.js`，对应源码为 `src/cli.ts`；入口解析任务文本、`--provider` 和 `--model`，无参数时显示帮助。
+1. `my-coding-agent` 启动构建后的 `dist/cli.js`，对应源码为 `src/cli.ts`；入口解析参数，真实终端无任务时进入交互，非终端无参数时显示帮助。
 2. 显式传入 `--env` 时加载环境文件，`resolveConfig()` 合并 CLI 参数、环境变量和默认值，拒绝无效配置。
-3. 单次任务通过 `runTask()` 创建一个会话；交互模式复用同一个 `Conversation`，逐行接收输入。
+3. 单次任务通过 `runTask()` 创建一个会话；交互模式复用同一个 `Conversation`。输入和输出都是终端时延迟加载 TUI，`--plain` 或非终端交互使用 readline。
 4. 注入的 `ModelProvider.complete()` 接收模型名、消息列表和取消信号。
 5. 成功后把用户输入与助手回复成对加入会话历史，再输出文本；单次调用失败时设置非零退出码，交互失败时保留原上下文并继续等待输入。
 
@@ -21,6 +21,9 @@ CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`。默认模拟响
 | [task.ts](../src/task.ts) | 把用户任务转换为模型请求，调用注入的适配器 |
 | [conversation.ts](../src/conversation.ts) | 管理成功问答历史、串行调用与清空 |
 | [interactive.ts](../src/interactive.ts) | 逐行输入、会话命令、取消与终端清理 |
+| [tui.ts](../src/tui.ts) | 全屏会话状态、命令、请求取消与卸载清理 |
+| [tui-view.ts](../src/tui-view.ts) | 响应终端尺寸、消息折行与翻页、输入和侧栏布局 |
+| [tui-input.ts](../src/tui-input.ts) | 按 Unicode 字素编辑输入、水平视口与真实光标位置 |
 | [providers/types.ts](../src/providers/types.ts) | 定义协议无关的消息、请求、响应和适配器接口 |
 | [providers/mock.ts](../src/providers/mock.ts) | 无网络、无凭据的演示适配器 |
 | [providers/index.ts](../src/providers/index.ts) | 按已解析配置创建适配器 |
@@ -38,6 +41,8 @@ HTTP 请求超时覆盖响应正文读取，响应字节上限限制内存使用
 适配器收到 `AbortSignal` 后负责终止自身进行中的工作。`runTask()` 在调用前和调用返回后都检查取消状态，因此取消后返回的结果不会被发布。适配器失败会向调用方传播，任务逻辑不把错误转换为成功响应。
 
 交互模式将已经成功完成的问答随新输入一起发送。同一会话拒绝并发发送或在请求期间清空；失败、取消和迟到结果不改变历史。消息仅在本次进程内使用，没有持久化会话或历史恢复。
+
+TUI 的显示记录包含失败输入与提示，独立于 `Conversation` 的成功模型历史。折行和去除终端控制符只作用于显示，不改写发送给模型的消息。Ink 管理备用屏幕、原始输入模式和退出恢复；组件卸载时取消当前请求，迟到结果不更新显示。界面机制见[终端界面](tui.md)。
 
 ## 从 DeepSeek Harness 参考了什么
 
