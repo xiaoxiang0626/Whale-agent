@@ -2,7 +2,7 @@ import type { Interface } from 'node:readline';
 import type { Writable } from 'node:stream';
 import type { Conversation } from './conversation.ts';
 import { formatError } from './errors.ts';
-import { renderWhaleMascot } from './mascot.ts';
+import { renderDeepSeekLogo } from './mascot.ts';
 
 /** 交互输出流，可提供终端尺寸和颜色能力。 */
 export interface InteractiveOutput extends Writable {
@@ -37,7 +37,7 @@ export async function runInteractive(
   terminal.on('SIGINT', interrupt);
   terminal.once('close', closed);
   terminal.setPrompt('你> ');
-  output.write(renderWhaleMascot({
+  output.write(renderDeepSeekLogo({
     columns: output.columns ?? 80, rows: output.rows ?? 30,
     colorDepth: output.isTTY === true && process.env['NO_COLOR'] === undefined ? (output.getColorDepth?.() ?? 1) : 1,
   }));

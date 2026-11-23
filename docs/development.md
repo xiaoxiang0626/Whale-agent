@@ -35,7 +35,7 @@ my-coding-agent "解释这个项目"
 
 修改源码后运行 `pnpm build`，本地链接的命令会使用最新构建。若终端提示找不到命令，请检查 npm 的全局命令目录是否位于 `PATH`；在 Windows 上可运行 `npm config get prefix` 查询该目录。
 
-打包文件通过 `files` 限定为 `dist/`，此外 npm 会包含包元数据和 README。`npm pack --dry-run --json --ignore-scripts` 可查看文件清单，当前清单不包含 `.env`、开发依赖或测试源码。
+打包文件通过 `files` 限定为 `dist/` 和第三方素材许可说明，此外 npm 会包含包元数据和 README。`npm pack --dry-run --json --ignore-scripts` 可查看文件清单，当前清单不包含 `.env`、开发依赖、测试源码或 `.local-assets/` 本地归档。
 
 ## 配置
 

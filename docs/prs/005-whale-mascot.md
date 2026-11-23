@@ -1,5 +1,7 @@
 # 鲸鱼娘欢迎形象
 
+本页记录阶段 005 的历史交付；当前终端图标见[DeepSeek 蓝鲸](../mascot.md)。
+
 ## 解决的问题
 
 交互 CLI 启动时显示参考图风格的鲸鱼娘。彩色终端使用本地像素字符画，无色或窄窗口使用简化字符画。使用方式与终端规则见[终端形象](../mascot.md)。
@@ -10,8 +12,8 @@
 
 ## 阅读顺序
 
-1. [像素数据与调色板](../../src/mascot-art.ts)。
-2. [尺寸、颜色与 ASCII 渲染](../../src/mascot.ts)。
+1. [当时的像素数据与调色板](https://github.com/xiaoxiang0626/my-coding-agent/blob/334b8f03609ca1a3dd1d58a3954c424d0beeac04/src/mascot-art.ts)。
+2. [当时的尺寸、颜色与 ASCII 渲染](https://github.com/xiaoxiang0626/my-coding-agent/blob/334b8f03609ca1a3dd1d58a3954c424d0beeac04/src/mascot.ts)。
 3. [交互入口](../../src/interactive.ts)中的终端能力读取。
 4. [CLI 集成测试](../../tests/cli.test.ts)中的交互形象与单次输出检查。
 

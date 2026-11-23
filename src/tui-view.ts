@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 import { Box, Text, useInput } from 'ink';
 import wrapAnsi from 'wrap-ansi';
 import { stripVTControlCharacters } from 'node:util';
-import { renderWhaleMascot } from './mascot.ts';
+import { renderDeepSeekLogo } from './mascot.ts';
 import { InputLine } from './tui-input.ts';
 
 const sidebarWidth = 34;
@@ -93,7 +93,7 @@ export function TerminalView(props: TerminalViewProps): ReactElement {
   const visible = lines.slice(Math.max(0, end - layout.historyRows), end);
   const frame = layout.compact ? {} : { borderStyle: 'round' as const, borderColor: 'gray', paddingX: 1 };
   const welcome = props.entries.length === 0;
-  const mascot = useMemo(() => renderWhaleMascot({
+  const mascot = useMemo(() => renderDeepSeekLogo({
     columns: layout.sidebar ? sidebarWidth - 4 : layout.messageWidth,
     rows: layout.sidebar ? layout.bodyHeight + 3 : layout.historyRows + 3,
     colorDepth: props.colorDepth,
@@ -116,7 +116,7 @@ export function TerminalView(props: TerminalViewProps): ReactElement {
       }, line.text || ' '))));
   const sidebar = layout.sidebar ? h(Box, { borderStyle: 'round', borderColor: 'blue', width: sidebarWidth,
     height: layout.bodyHeight, flexShrink: 0, flexDirection: 'column', paddingX: 1, overflow: 'hidden' },
-  h(Text, { color: 'cyan', bold: true }, '鲸鱼娘 · 会话状态'),
+  h(Text, { color: 'cyan', bold: true }, 'DeepSeek · 会话状态'),
   h(Text, null, mascot),
   h(Text, { dimColor: true, wrap: 'truncate-end' }, `适配器 ${props.provider}`)) : null;
   const input = h(Box, { ...frame, height: layout.compact ? 1 : 3, flexShrink: 0,
