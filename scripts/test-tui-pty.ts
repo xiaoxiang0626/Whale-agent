@@ -72,7 +72,7 @@ async function resize(columns: number, rows: number): Promise<void> {
 }
 
 try {
-  await waitFor(() => screen().includes('输入消息或 /help') && screen().includes('鲸鱼娘 · 会话状态'), 'welcome');
+  await waitFor(() => screen().includes('输入消息或 /help') && screen().includes('DeepSeek · 会话状态'), 'welcome');
   assert.equal(terminal.buffer.active.type, 'alternate');
   capture('welcome-130x34');
   const prompt = live ? '请仅回复：界面连接成功' : '你好，小鲸';
@@ -83,7 +83,7 @@ try {
     const draft = '中文🐳'.repeat(25) + '尾部';
     await type(draft, '尾部');
     await resize(80, 24);
-    await waitFor(() => screen().includes('尾部') && !screen().includes('鲸鱼娘 · 会话状态'), 'normal layout');
+    await waitFor(() => screen().includes('尾部') && !screen().includes('DeepSeek · 会话状态'), 'normal layout');
     capture('draft-80x24');
     await resize(40, 12);
     await waitFor(() => screen().includes('尾部') && !screen().includes('╭'), 'compact layout');

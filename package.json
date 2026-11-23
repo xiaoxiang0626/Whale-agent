@@ -8,7 +8,8 @@
     "my-coding-agent": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "packageManager": "pnpm@11.28.5",
   "engines": {

@@ -24,6 +24,7 @@ CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`。默认模拟响
 | [tui.ts](../src/tui.ts) | 全屏会话状态、命令、请求取消与卸载清理 |
 | [tui-view.ts](../src/tui-view.ts) | 响应终端尺寸、消息折行与翻页、输入和侧栏布局 |
 | [tui-input.ts](../src/tui-input.ts) | 按 Unicode 字素编辑输入、水平视口与真实光标位置 |
+| [mascot.ts](../src/mascot.ts) | 按空间和颜色能力绘制 DeepSeek 蓝鲸字符图标 |
 | [providers/types.ts](../src/providers/types.ts) | 定义协议无关的消息、请求、响应和适配器接口 |
 | [providers/mock.ts](../src/providers/mock.ts) | 无网络、无凭据的演示适配器 |
 | [providers/index.ts](../src/providers/index.ts) | 按已解析配置创建适配器 |

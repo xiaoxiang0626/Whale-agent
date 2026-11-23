@@ -45,8 +45,8 @@ test('宽屏、普通和窄窗口保留输入区，中文消息不越过终端�
     for (const line of frame.split('\n')) { assert.ok(stringWidth(line) <= columns, line); }
     assert.match(frame, /你 ›/);
     assert.match(frame, /尚未发送的草稿/);
-    if (columns >= 100) { assert.match(frame, /鲸鱼娘 · 会话状态/); }
-    else { assert.doesNotMatch(frame, /鲸鱼娘 · 会话状态/); }
+    if (columns >= 100) { assert.match(frame, /DeepSeek · 会话状态/); }
+    else { assert.doesNotMatch(frame, /DeepSeek · 会话状态/); }
   }
 });
 
