@@ -5,12 +5,14 @@ import { AppError } from '../src/errors.ts';
 import { resolveAgentConfig } from '../src/agent-config.ts';
 
 test('工作区与循环限制有明确默认值，CLI 可覆盖环境，非法限制在启动时失败', () => {
-  assert.deepEqual(resolveAgentConfig({}, {}, 'cwd'), { workspace: 'cwd', maxSteps: 12 });
+  assert.deepEqual(resolveAgentConfig({}, {}, 'cwd'), { workspace: 'cwd', maxSteps: 12, maxContextChars: 48000 });
   assert.deepEqual(resolveAgentConfig({ CODING_AGENT_WORKSPACE: 'env', CODING_AGENT_MAX_STEPS: '3' }, { workspace: 'cli', maxSteps: '4' }, 'cwd'),
-    { workspace: 'cli', maxSteps: 4 });
+    { workspace: 'cli', maxSteps: 4, maxContextChars: 48000 });
   for (const value of ['', '0', '101', '-1', '1.5']) {
     assert.throws(() => resolveAgentConfig({}, { maxSteps: value }, 'cwd'), /max-steps/);
   }
+  assert.equal(resolveAgentConfig({ CODING_AGENT_CONTEXT_CHARS: '8000' }, { maxContextChars: '6000' }, 'cwd').maxContextChars, 6000);
+  for (const value of ['0', '3999', '1000001', 'NaN']) { assert.throws(() => resolveAgentConfig({}, { maxContextChars: value }, 'cwd'), /context-chars/); }
 });
 
 test('默认运行离线适配器，CLI 配置优先于环境变量', () => {

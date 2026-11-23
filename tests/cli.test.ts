@@ -114,3 +114,19 @@ test('CLI 交互模式显示预览并接受明确确认，单次和只读模式�
   assert.match(result.stdout, /已应用 edit-1/);
   assert.equal(await readFile(join(root, 'new.txt'), 'utf8'), 'confirmed\n');
 });
+
+test('CLI 新建和恢复命名会话，拒绝覆盖、模式冲突与无效恢复参数', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'agent-cli-session-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const env = { ...process.env, CODING_AGENT_PROVIDER: 'mock', CODING_AGENT_MODEL: 'mock-v1' };
+  const created = cliWithEnv(['-i', '--workspace', root, '--session', '学习'], env, '保留历史\n/exit\n');
+  assert.equal(created.status, 0); assert.match(created.stdout, /会话日志/);
+  const resumed = cliWithEnv(['-i', '--workspace', root, '--resume', '学习'], env, '继续\n/exit\n');
+  assert.equal(resumed.status, 0); assert.match(resumed.stdout, /已完成 1 轮/);
+  const log = await readFile(join(root, '.coding-agent/sessions/学习.jsonl'), 'utf8');
+  assert.match(log, /保留历史/); assert.match(log, /会话恢复/); assert.match(log, /继续/);
+  for (const args of [['-i', '--session', '学习'], ['-i', '--resume', '学习', '--read-only'],
+    ['-i', '--session', 'x', '--resume', 'x'], ['-i', '--repair-session'], ['-i', '--resume', '../escape']]) {
+    assert.equal(cliWithEnv(['--workspace', root, ...args], env, '/exit\n').status, 1);
+  }
+});

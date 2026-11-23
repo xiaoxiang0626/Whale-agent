@@ -76,7 +76,7 @@ export async function createCommandTools(directory: string, secrets: readonly st
         const result = await runCommand(spec, signal, secrets);
         uncertain = result.status === 'unknown';
         const ok = result.status === 'exited' && result.exitCode === 0;
-        return { ok, content: JSON.stringify({ ok, id, command: spec, ...result }), continueModel: result.status === 'exited' || result.status === 'timeout',
+        return { ok, content: JSON.stringify({ ok, id, command: spec, ...result }), continueModel: result.status === 'exited' || result.status === 'timeout', uncertain,
           summary: `${id}：${result.status}，退出码 ${result.exitCode ?? '未知'}${result.truncated ? '，输出已截断' : ''}`,
           preview: result.output };
       } catch (error) {

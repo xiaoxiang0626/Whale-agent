@@ -19,7 +19,7 @@ const definition: ToolDefinition = {
 function failure(error: unknown): ToolResult {
   const code = error instanceof FileToolError ? error.code : error instanceof SyntaxError ? 'INVALID_ARGUMENTS' : 'IO_ERROR';
   const message = error instanceof FileToolError ? error.message : '无法处理文件修改，请检查参数、路径和权限。';
-  return { ok: false, content: JSON.stringify({ ok: false, error: { code, message } }), summary: `${code}：${message}` };
+  return { ok: false, content: JSON.stringify({ ok: false, error: { code, message } }), summary: `${code}：${message}`, uncertain: code === 'WRITE_UNCERTAIN' };
 }
 
 /** @param directory 已授权的工作目录。 @returns 只读工具与需要用户确认的文件提案能力。 */

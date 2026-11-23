@@ -21,7 +21,9 @@ CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`，单次默认创
 | [task.ts](../src/task.ts) | 把用户任务转换为模型请求，调用注入的适配器 |
 | [conversation.ts](../src/conversation.ts) | 管理成功问答历史、串行调用与清空 |
 | [agent-loop.ts](../src/agent-loop.ts) | 模型与工具循环、次数限制和进度事件 |
-| [agent-config.ts](../src/agent-config.ts) | 工作区与循环限制解析 |
+| [agent-config.ts](../src/agent-config.ts) | 工作区、循环与上下文限制解析 |
+| [session.ts](../src/session.ts) | 版本化日志、独占锁、恢复与末行修复 |
+| [context.ts](../src/context.ts) | 按完整轮次选择模型上下文 |
 | [tools/workspace.ts](../src/tools/workspace.ts) | 路径授权、忽略规则、有限文本读取 |
 | [tools/commands.ts](../src/tools/commands.ts) | 命令提案、确认和测试反馈 |
 | [tools/process.ts](../src/tools/process.ts) | 前台进程、输出限制与取消清理 |
@@ -50,7 +52,7 @@ HTTP 请求超时覆盖响应正文读取，响应字节上限限制内存使用
 
 适配器收到 `AbortSignal` 后负责终止自身进行中的工作。`runTask()` 在调用前和调用返回后都检查取消状态，因此取消后返回的结果不会被发布。适配器失败会向调用方传播，任务逻辑不把错误转换为成功响应。
 
-交互模式将成功模型消息和用户确认操作结果随新输入发送。实际文件写入立即记录，后续模型失败不会丢弃操作结果，详情见[文件修改](editing.md)。同一会话拒绝并发发送或在请求期间清空；普通模型请求失败、取消和迟到结果不改变此前历史。消息仅在本次进程内使用，没有持久化会话或历史恢复。工作区限制与协议细节见[只读 Agent](agent-tools.md)。
+交互模式将成功模型消息和用户确认操作结果随新输入发送。实际文件写入立即记录，后续模型失败不会丢弃操作结果，详情见[文件修改](editing.md)。同一会话拒绝并发发送或在请求期间清空；普通模型请求失败、取消和迟到结果不改变此前历史。`--session` 开启日志，实际请求先记录再发送，确认操作先记开始再执行；`--resume` 恢复成功历史及实际结果。请求按字符预算省略旧轮次，完整历史保留，详见[会话日志](sessions.md)。工作区限制与协议细节见[只读 Agent](agent-tools.md)。
 
 TUI 的显示记录包含失败输入与提示，独立于 `Conversation` 的成功模型历史。折行和去除终端控制符只作用于显示，不改写发送给模型的消息。Ink 管理备用屏幕、原始输入模式和退出恢复；组件卸载时取消当前请求，迟到结果不更新显示。界面机制见[终端界面](tui.md)。
 
@@ -63,6 +65,6 @@ TUI 的显示记录包含失败输入与提示，独立于 `Conversation` 的成
 | 启动时明确配置 | `resolveConfig()` 先解析，任务只接收具体参数 |
 | 能力逐步组合 | 每个 PR 增加一种可验证的能力 |
 
-Harness 的 Cordis 插件树、Agent 循环和事件持久化有各自的职责。本项目通过显式依赖注入组织模块，已经提供有界工具循环；会话保存将在对应 PR 中实现。
+Harness 的 Cordis 插件树、Agent 循环和事件持久化有各自的职责。本项目通过显式依赖注入组织模块，已经提供有界工具循环、用户确认与可恢复日志。
 
 参考源码位于原工作区的 `docs/architecture.md`、`packages/llm/llm/` 和 `packages/core/agent-loop/`。公开入口为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。本项目尚未复制 Harness 的实现代码或引入其运行时依赖。

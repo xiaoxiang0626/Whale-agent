@@ -49,7 +49,10 @@ my-coding-agent "解释这个项目"
 | 无 | `CODING_AGENT_API_KEY` | 无 | 真实接口的 Bearer 密钥，只从本地环境读取 |
 | 无 | `CODING_AGENT_TIMEOUT_MS` | `30000` | 真实请求超时，单位毫秒 |
 | 无 | `CODING_AGENT_MAX_RESPONSE_BYTES` | `1048576` | 真实接口响应正文的字节上限 |
-| `--workspace` | `CODING_AGENT_WORKSPACE` | 当前目录 | 只读工具可访问的目录 |
+| `--workspace` | `CODING_AGENT_WORKSPACE` | 当前目录 | 工具与会话的工作区 |
+| `--context-chars` | `CODING_AGENT_CONTEXT_CHARS` | `48000` | 请求 JSON 的字符预算，范围 4000–1000000 |
+| `--session`、`--resume` | 无 | 关闭日志 | 新建或恢复命名会话 |
+| `--repair-session` | 无 | 拒绝未完成末行 | 备份原日志后移除末行，须配合恢复 |
 | `--max-steps` | `CODING_AGENT_MAX_STEPS` | `12` | 每轮 1–100 次模型请求上限 |
 | `--read-only` | 无 | 交互默认可提案 | 交互也仅提供只读工具，关闭修改与命令 |
 | `--no-tools` | 无 | 单次只读、交互可提案 | 关闭模型工具，仅进行文本对话 |
@@ -98,6 +101,8 @@ CLI 不打印任意异常的完整内容。模拟调用立即完成；HTTP 适�
 真实伪终端检查使用开发依赖 `node-pty`、`@xterm/headless` 与其 Unicode 11 插件，直接启动 Node，不依赖 PowerShell 或其他 shell。仓库使用 node-pty 自带预编译模块，`pnpm-workspace.yaml` 显式禁止它的安装脚本；不支持的系统或架构会报错，需先解决安装问题。该检查验证构建产物、备用屏幕恢复和 130×34、80×24、40×12 缩放，不计入单元测试用例数。
 
 只有显式运行 `pnpm test:tui:pty --live` 才加载本地 `.env` 并发起一次真实文本请求，会消耗接口额度。验证结果只输出成功状态，不保存真实屏幕内容或密钥。`--capture` 仅在离线模式将模拟屏幕单元格写入 `.git/tui-captures.json`，供生成预览使用。
+
+`pnpm test:session:pty` 用两个独立的构建产物进程验证恢复；`pnpm test:session:live` 检查真实工具历史恢复，并比较同一合成历史裁剪前后的 prompt token。它只使用临时数据，真实请求使用本地配置。
 
 `pnpm test:commands:live` 使用真实模型提出命令，通过确认入口运行临时 Node 测试，检查退出码和结果回传。
 

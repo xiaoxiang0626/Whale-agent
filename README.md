@@ -42,11 +42,21 @@ pnpm start "解释这个项目"
 my-coding-agent --env .env --interactive
 ```
 
-真实终端中自动进入全屏界面：顶部显示模型和状态，中间显示对话，底部固定输入框，宽屏右侧显示 DeepSeek 蓝鲸字符图标。输入消息后按 Enter 发送，PgUp/PgDn 浏览历史；输入 `/help` 查看帮助、`/clear` 清空上下文、`/exit` 退出。请求期间按 Ctrl+C 取消本次请求，空闲时按 Ctrl+C 退出。成功问答保留在当前进程中；退出后不保存历史。
+真实终端中自动进入全屏界面：顶部显示模型和状态，中间显示对话，底部固定输入框，宽屏右侧显示 DeepSeek 蓝鲸字符图标。输入消息后按 Enter 发送，PgUp/PgDn 浏览历史；输入 `/help` 查看帮助、`/clear` 清空上下文、`/exit` 退出。请求期间按 Ctrl+C 取消本次请求，空闲时按 Ctrl+C 退出。默认成功问答保留在内存；需要保存时使用 `--session 名称`，下次用 `--resume 名称` 恢复，详见[会话日志](docs/sessions.md)。
 
 ![终端界面预览，由真实伪终端输出的单元格渲染](docs/assets/tui-preview.png)
 
 图标使用本地字符绘制，支持蓝色、无色与小窗口版本，不需要启用终端图片功能。窗口缩小时自动收起侧栏或边框，草稿保持不变。需要逐行输出时加 `--plain`；管道输入自动使用逐行模式。详见[终端图标](docs/mascot.md)、[终端界面](docs/tui.md)和[交互会话](docs/interactive.md)。
+
+保存本次开发过程，之后继续：
+
+```sh
+my-coding-agent --env .env --session 开发1
+# 下次启动
+my-coding-agent --env .env --resume 开发1
+```
+
+文件修改输入 `/apply 编号` 确认，命令输入 `/run 编号` 确认，`/reject 编号` 丢弃。上下文超长时按完整轮次省略旧消息，完整日志仍保留。
 
 ## 技术文档
 
@@ -62,6 +72,7 @@ my-coding-agent --env .env --interactive
 - [只读 Agent](docs/agent-tools.md)：工作区、工具循环、权限与验证。
 - [文件修改与确认](docs/editing.md)：diff、版本检查、应用与拒绝。
 - [命令与测试反馈](docs/commands.md)：执行预览、超时、取消与实际结果。
+- [会话保存与恢复](docs/sessions.md)：命名日志、异常恢复与上下文预算。
 
 ## 分析代码
 
