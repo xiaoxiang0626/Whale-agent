@@ -199,6 +199,8 @@
 
 ## 2026-11-23：Whale Agent 仓库命名与公开
 
+关联：[仓库命名与公开说明 PR #13](https://github.com/xiaoxiang0626/Whale-agent/pull/13)。
+
 **需求：**将仓库设为公开，英文名采用用户指定的 Whale agent，中文描述为“基于DSH逐个pr写出自己的coding agent”。[变更说明](prs/012-public-repository.md)。
 
 **命名限制与解决：**GitHub 仓库名不接受中文和空格，英文名使用 `Whale-agent`，中文内容放入仓库描述与 README 标题。原仓库 ID 保持一致，提交、分支和 PR 历史随改名保留；本地 origin 与文档链接同步更新。
