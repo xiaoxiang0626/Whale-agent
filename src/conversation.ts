@@ -4,7 +4,7 @@ import { runAgent } from './agent-loop.ts';
 import type { AgentOptions } from './agent-loop.ts';
 import type { AgentEvent } from './tools/types.ts';
 
-/** 同一进程内的文本会话；成功问答成对加入历史，失败或取消不改变历史。 */
+/** 同一进程内的会话；模型失败不提交本轮消息，已确认的文件操作结果独立保留。 */
 export class Conversation {
   readonly model: string;
   readonly providerId: string;
@@ -23,7 +23,7 @@ export class Conversation {
     this.options = options;
   }
 
-  /** 已成功完成的问答副本；不会随下一轮更新。 */
+  /** 已完成的模型消息与用户确认操作副本；不会随下一轮更新。 */
   get messages(): readonly ModelMessage[] {
     return structuredClone(this.history);
   }
@@ -45,6 +45,7 @@ export class Conversation {
     if (this.busy) { throw new AppError('CONVERSATION_BUSY', '请先等待或取消当前请求。'); }
     this.history.length = 0;
     this.turns = 0;
+    this.options.tools?.clearPending?.();
   }
 
   /**
@@ -61,10 +62,21 @@ export class Conversation {
     const user: ModelMessage = { role: 'user', content: prompt };
     this.busy = true;
     try {
-      const { response, delta } = await runAgent(this.provider, this.model, [...this.history, user], this.options,
+      const action = /^\/(apply|reject) ([a-zA-Z0-9-]+)$/.exec(prompt);
+      if (action !== null) {
+        const handler = this.options.tools?.action;
+        if (handler === undefined) { throw new AppError('TOOL_UNAVAILABLE', '当前模式不支持确认文件修改。'); }
+        const result = await handler(action[1] === 'apply' ? 'apply' : 'reject', action[2] ?? '', signal);
+        this.history.push(user, { role: 'system', content: `[已确认操作结果] ${result.content}` });
+        for (const listener of this.listeners) { listener({ type: 'tool', name: '用户确认', ok: result.ok, summary: result.summary }); }
+        signal.throwIfAborted();
+        if (!result.ok || action[1] === 'reject') { return { text: `[本地操作] ${result.summary}` }; }
+      }
+      const prefix = action === null ? [...this.history, user] : this.history;
+      const { response, delta } = await runAgent(this.provider, this.model, prefix, this.options,
         signal, event => { for (const listener of this.listeners) { listener(event); } });
       signal.throwIfAborted();
-      this.history.push(user, ...delta); this.turns++;
+      this.history.push(...(action === null ? [user] : []), ...delta); this.turns++;
       return response;
     } finally {
       this.busy = false;

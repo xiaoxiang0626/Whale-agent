@@ -46,7 +46,8 @@ export async function runAgent(provider: ModelProvider, model: string, messages:
       const result = await options.tools.execute(call, signal);
       signal.throwIfAborted(); calls++;
       delta.push({ role: 'tool', toolCallId: call.id, content: result.content });
-      emit({ type: 'tool', name: call.name, ok: result.ok, summary: result.summary });
+      emit({ type: 'tool', name: call.name, ok: result.ok, summary: result.summary,
+        ...(result.preview === undefined ? {} : { preview: result.preview }) });
     }
   }
   throw new AppError('AGENT_LIMIT', '已达到本轮模型请求次数上限，可提高 --max-steps 或缩小任务范围。');

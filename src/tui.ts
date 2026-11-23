@@ -32,7 +32,7 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
   useEffect(() => conversation.subscribe(event => {
     if (!mounted.current) { return; }
     if (event.type === 'model') { setStatus(`正在思考 · 第 ${event.step} 步`); }
-    else { setEntries(current => [...current, { role: event.ok ? 'notice' : 'error', text: `${event.name}：${event.summary}` }]); }
+    else { setEntries(current => [...current, { role: event.ok ? 'notice' : 'error', text: `${event.name}：${event.summary}${event.preview === undefined ? '' : `\n${event.preview}`}` }]); }
   }), [conversation]);
   useInput((input, key) => {
     if (key.eventType === 'release') { return; }
@@ -53,9 +53,9 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
       conversation.clear(); setEntries([]); setStatus('上下文已清空'); return;
     }
     if (text === '/help') {
-      setEntries(current => [...current, { role: 'notice', text: '/help 帮助 · /clear 清空上下文 · /exit 退出。PgUp/PgDn 浏览消息，Ctrl+C 或 Esc 取消请求。' }]); return;
+      setEntries(current => [...current, { role: 'notice', text: '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /reject 编号 拒绝。PgUp/PgDn 浏览消息，Ctrl+C 或 Esc 取消请求。' }]); return;
     }
-    if (text.startsWith('/')) {
+    if (text.startsWith('/') && !/^\/(apply|reject) [a-zA-Z0-9-]+$/.test(text)) {
       setEntries(current => [...current, { role: 'error', text: '未知命令，请输入 /help。' }]); return;
     }
     const controller = new AbortController(); active.current = controller;
@@ -72,7 +72,7 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
         const cancelled = controller.signal.aborted;
         setEntries(current => [...current, {
           role: cancelled ? 'notice' : 'error',
-          text: cancelled ? '已取消本次请求，上下文保持不变。' : formatError(error),
+          text: cancelled ? '已取消本次请求；已完成的确认操作不回滚。' : formatError(error),
         }]);
         setStatus(cancelled ? '已取消 · 可继续输入' : '请求失败 · 可重试');
       }
