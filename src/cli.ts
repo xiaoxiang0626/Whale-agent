@@ -20,6 +20,7 @@ const help = `my-coding-agent — 编码 Agent 学习项目
   --base-url      模型 API 的基础地址
   --env           显式加载本地环境文件
   --interactive, -i  显式进入交互会话，也可接受管道中的逐行输入
+  --plain         使用逐行纯文本会话，不进入终端界面
 
 示例：my-coding-agent "解释这个项目"
 源码开发：pnpm dev "解释这个项目"
@@ -38,6 +39,7 @@ function parseInput() {
         'base-url': { type: 'string' },
         env: { type: 'string' },
         interactive: { type: 'boolean', short: 'i' },
+        plain: { type: 'boolean' },
       },
       allowPositionals: true,
       strict: true,
@@ -77,6 +79,11 @@ async function main(): Promise<void> {
   });
   const provider = createProvider(config);
   if (interactive) {
+    if (values.plain !== true && process.stdin.isTTY === true && process.stdout.isTTY === true) {
+      const { runTui } = await import('./tui.ts');
+      await runTui(new Conversation(provider, config.model));
+      return;
+    }
     const terminal = createInterface({
       input: process.stdin, output: process.stdout,
       terminal: process.stdin.isTTY === true && process.stdout.isTTY === true,

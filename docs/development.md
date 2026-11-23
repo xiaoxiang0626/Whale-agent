@@ -1,6 +1,6 @@
 # 开发与配置
 
-本项目使用 TypeScript 和 Node.js 内置测试工具；生产运行时没有第三方依赖。Node.js 直接运行源码时不会检查类型，因此提交前需要执行类型检查。参见 [Node.js TypeScript 文档](https://nodejs.org/api/typescript.html)和 [TypeScript 导入扩展名配置](https://www.typescriptlang.org/tsconfig/rewriteRelativeImportExtensions.html)。
+本项目使用 TypeScript 和 Node.js 内置测试工具；终端界面使用 Ink、React、wrap-ansi 和 string-width。源码保持 `.ts`，通过 `React.createElement` 组合组件，无需 JSX 转换。Node.js 直接运行源码时不会检查类型，因此提交前需要执行类型检查。参见 [Node.js TypeScript 文档](https://nodejs.org/api/typescript.html)和 [TypeScript 导入扩展名配置](https://www.typescriptlang.org/tsconfig/rewriteRelativeImportExtensions.html)。
 
 ## 常用命令
 
@@ -12,10 +12,11 @@ pnpm dev --help
 pnpm dev "解释这个项目"
 pnpm dev --provider mock --model mock-v1 "检查调用流程"
 pnpm check
+pnpm test:tui:pty
 pnpm start "解释这个项目"
 ```
 
-`pnpm dev` 运行 `src/cli.ts`。`pnpm check` 顺序执行类型检查、测试和构建。`pnpm start` 运行构建结果，首次运行前需要构建。
+`pnpm dev` 运行 `src/cli.ts`。`pnpm check` 顺序执行类型检查、测试和构建。`pnpm test:tui:pty` 验证最新构建的终端界面，必须先构建；默认使用离线模拟。`pnpm start` 运行构建结果，首次运行前需要构建。
 
 ## 安装命令行入口
 
@@ -30,7 +31,7 @@ my-coding-agent "解释这个项目"
 
 `package.json` 的 `bin` 将 `my-coding-agent` 指向 `dist/cli.js`，构建后的入口保留 Node.js shebang。`npm link` 在本机注册该命令，不发布到 npm；参见 [npm link 文档](https://docs.npmjs.com/cli/v11/commands/npm-link/)。注册后可以从其他目录调用，执行位置由终端当前目录确定，当前版本不会读取该目录的代码。
 
-终端中不提供任务参数会进入交互会话，也可通过 `--interactive` 或 `-i` 显式进入。通过参数提供任务时仍是单次调用。非终端输入且没有参数时显示帮助；带配置选项的非交互调用需要提供任务。连续输入、命令与取消行为见[交互会话](interactive.md)。
+终端中不提供任务参数会进入全屏交互界面，也可通过 `--interactive` 或 `-i` 显式进入。加 `--plain` 使用逐行会话；非终端交互自动使用逐行模式。通过参数提供任务时仍是单次调用。非终端输入且没有参数时显示帮助；带配置选项的非交互调用需要提供任务。连续输入、命令与取消行为见[交互会话](interactive.md)。
 
 修改源码后运行 `pnpm build`，本地链接的命令会使用最新构建。若终端提示找不到命令，请检查 npm 的全局命令目录是否位于 `PATH`；在 Windows 上可运行 `npm config get prefix` 查询该目录。
 
@@ -86,9 +87,13 @@ CLI 不打印任意异常的完整内容。模拟调用立即完成；HTTP 适�
 
 ## 验证范围
 
-测试覆盖适配器调用、配置、HTTP 失败，以及会话上下文、清空、并发拒绝、取消、输入结束和 CLI 子进程。自动化测试仅访问本地模拟 HTTP 服务，不需要 API Key，也不修改测试进程的全局环境变量。真实服务验证使用本地配置单独执行，不把凭据放入测试。
+测试覆盖适配器调用、配置、HTTP 失败，以及会话上下文、清空、并发拒绝、取消、输入结束和 CLI 子进程。TUI 测试另外验证中文与 emoji 编辑、缩放、历史翻页、取消和卸载。默认自动化测试仅访问本地模拟 HTTP 服务，不需要 API Key，也不修改测试进程的全局环境变量。
 
-构建使用独立的 `tsconfig.build.json`，只输出 `src/`，并将相对导入的 `.ts` 扩展名改为 `.js`。`tests/` 参与类型检查，不进入 `dist/`。
+真实伪终端检查使用开发依赖 `node-pty`、`@xterm/headless` 与其 Unicode 11 插件，直接启动 Node，不依赖 PowerShell 或其他 shell。仓库使用 node-pty 自带预编译模块，`pnpm-workspace.yaml` 显式禁止它的安装脚本；不支持的系统或架构会报错，需先解决安装问题。该检查验证构建产物、备用屏幕恢复和 130×34、80×24、40×12 缩放，不计入单元测试用例数。
+
+只有显式运行 `pnpm test:tui:pty --live` 才加载本地 `.env` 并发起一次真实文本请求，会消耗接口额度。验证结果只输出成功状态，不保存真实屏幕内容或密钥。`--capture` 仅在离线模式将模拟屏幕单元格写入 `.git/tui-captures.json`，供生成预览使用。
+
+构建使用独立的 `tsconfig.build.json`，只输出 `src/`，并将相对导入的 `.ts` 扩展名改为 `.js`。`tests/` 与 `scripts/` 参与类型检查，不进入 `dist/`。
 
 ## 提交与合入
 
