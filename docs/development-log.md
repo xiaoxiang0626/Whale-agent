@@ -10,7 +10,7 @@
 
 ## 2026-11-23：基础框架与 CLI 命令
 
-关联：[基础框架 PR #2](https://github.com/xiaoxiang0626/my-coding-agent/pull/2)、[命令行入口 PR #3](https://github.com/xiaoxiang0626/my-coding-agent/pull/3)。
+关联：[基础框架 PR #2](https://github.com/xiaoxiang0626/Whale-agent/pull/2)、[命令行入口 PR #3](https://github.com/xiaoxiang0626/Whale-agent/pull/3)。
 
 **问题与解决：**最初需要通过开发脚本运行任务，终端中没有独立命令。在包元数据中声明命令入口，构建产物保留 Node.js shebang，再通过本地 `npm link` 注册 `my-coding-agent`。
 
@@ -20,7 +20,7 @@
 
 ## 2026-11-23：模型 API 与环境文件
 
-关联：[模型接口 PR #4](https://github.com/xiaoxiang0626/my-coding-agent/pull/4)。
+关联：[模型接口 PR #4](https://github.com/xiaoxiang0626/Whale-agent/pull/4)。
 
 **问题一：环境文件参数冲突。**初始设计使用 `--env-file` 作为应用参数。实际子进程验证中，Node.js 对该参数进行了启动阶段处理；文件不存在时，进程以退出码 9 结束，应用无法给出预期的配置诊断。应用参数改为 `--env`，由应用显式加载文件。Node.js 自己的 `node --env-file=…` 用法保持独立。
 
@@ -34,7 +34,7 @@
 
 ## 2026-11-23：持续输入与会话上下文
 
-关联：[交互会话 PR #5](https://github.com/xiaoxiang0626/my-coding-agent/pull/5)，阶段 004；实现与阅读顺序见[交互会话技术说明](prs/004-interactive-session.md)。
+关联：[交互会话 PR #5](https://github.com/xiaoxiang0626/Whale-agent/pull/5)，阶段 004；实现与阅读顺序见[交互会话技术说明](prs/004-interactive-session.md)。
 
 **使用问题：**单次任务回复后进程退出，用户无法在同一 CLI 会话中继续输入。新增逐行交互界面和独立会话对象，成功问答成对进入内存历史，后续模型请求携带历史。失败、取消与迟到回复不改变此前历史；提供清空、帮助与退出命令。
 
@@ -57,7 +57,7 @@
 
 ## 2026-11-23：鲸鱼娘 CLI 欢迎形象
 
-关联：[终端形象 PR #6](https://github.com/xiaoxiang0626/my-coding-agent/pull/6)，阶段 005；实现与阅读顺序见[技术说明](prs/005-whale-mascot.md)。
+关联：[终端形象 PR #6](https://github.com/xiaoxiang0626/Whale-agent/pull/6)，阶段 005；实现与阅读顺序见[技术说明](prs/005-whale-mascot.md)。
 
 **使用问题与解决：**交互启动只有文字信息，缺少用户要求的角色图案。参考提供的角色图绘制 44×44 像素色码，用半块字符和终端颜色显示蓝发、头饰、围裙和鲸鱼尾巴。窗口尺寸或颜色能力不足时改为简化字符画；单次任务保持原有输出。
 
@@ -78,7 +78,7 @@
 
 ## 2026-11-23：全屏终端交互界面
 
-关联：[终端界面 PR #7](https://github.com/xiaoxiang0626/my-coding-agent/pull/7)，阶段 006，分支 `功能/006-终端交互界面`；设计、阅读顺序与验收见[技术说明](prs/006-terminal-interface.md)。
+关联：[终端界面 PR #7](https://github.com/xiaoxiang0626/Whale-agent/pull/7)，阶段 006，分支 `功能/006-终端交互界面`；设计、阅读顺序与验收见[技术说明](prs/006-terminal-interface.md)。
 
 **使用问题与解决：**逐行输出缺少固定输入区、模型状态和可浏览的消息区域。新增 Ink 与 React 全屏终端界面，宽屏显示鲸鱼娘侧栏，普通窗口单栏显示，窄窗口收起边框。`--plain` 保留逐行会话，非终端交互自动使用逐行模式，单次任务保持原有输出。
 
@@ -108,7 +108,7 @@
 
 ## 2026-11-23：DeepSeek 蓝鲸终端图标
 
-关联：[蓝鲸终端图标 PR #8](https://github.com/xiaoxiang0626/my-coding-agent/pull/8)，阶段 007，分支 `功能/007-蓝鲸终端图标`；交付与阅读顺序见[技术说明](prs/007-deepseek-logo.md)。
+关联：[蓝鲸终端图标 PR #8](https://github.com/xiaoxiang0626/Whale-agent/pull/8)，阶段 007，分支 `功能/007-蓝鲸终端图标`；交付与阅读顺序见[技术说明](prs/007-deepseek-logo.md)。
 
 **需求与解决：**按照用户最新要求，以 DeepSeek 蓝鲸字符图标替换角色像素画。使用参考蓝鲸轮廓的单色字符，按空间和颜色选择完整、ASCII 或名称版本。图标不进入模型上下文，不发起 API 请求；参考素材许可随打包产物交付。
 
@@ -134,7 +134,7 @@
 
 ## 2026-11-23：只读工具与 Agent 循环
 
-关联：[只读 Agent PR #9](https://github.com/xiaoxiang0626/my-coding-agent/pull/9)，阶段 008，分支 `功能/008-只读工具与执行循环`；交付和阅读顺序见[技术说明](prs/008-read-only-agent.md)。
+关联：[只读 Agent PR #9](https://github.com/xiaoxiang0626/Whale-agent/pull/9)，阶段 008，分支 `功能/008-只读工具与执行循环`；交付和阅读顺序见[技术说明](prs/008-read-only-agent.md)。
 
 **能力变化：**由单次文本模型调用增加为“模型提出调用、执行只读工具、回传结果、模型继续”的有界循环。提供工作区、模型请求上限和关闭工具的 CLI 参数，终端显示工具摘要。成功历史保留完整工具消息和调用 ID，问答轮数独立计数。
 
@@ -159,7 +159,7 @@
 
 ## 2026-11-23：修改预览与确认写入
 
-关联：[修改预览与确认 PR #10](https://github.com/xiaoxiang0626/my-coding-agent/pull/10)，阶段 009，分支 `功能/009-修改预览与确认写入`；[阅读顺序与交付](prs/009-confirmed-editing.md)。
+关联：[修改预览与确认 PR #10](https://github.com/xiaoxiang0626/Whale-agent/pull/10)，阶段 009，分支 `功能/009-修改预览与确认写入`；[阅读顺序与交付](prs/009-confirmed-editing.md)。
 
 **实现与问题：**提案先生成 diff，用户输入 `/apply` 才写入。使用 `diff` 生成有界预览，保留 BOM、CRLF 和结尾换行，避免读取时归一化导致无关文件变化。确认时重新校验摘要和权限，临时文件刷新后替换，拒绝覆盖预览后的用户修改。已确认操作独立记录，解决实际写入成功但后续模型失败时历史丢失的问题。
 
@@ -171,7 +171,7 @@
 
 ## 2026-11-23：命令确认与测试反馈
 
-关联：[命令确认与测试反馈 PR #11](https://github.com/xiaoxiang0626/my-coding-agent/pull/11)，阶段 010，分支 `功能/010-命令确认与测试反馈`；[交付与阅读顺序](prs/010-confirmed-commands.md)。
+关联：[命令确认与测试反馈 PR #11](https://github.com/xiaoxiang0626/Whale-agent/pull/11)，阶段 010，分支 `功能/010-命令确认与测试反馈`；[交付与阅读顺序](prs/010-confirmed-commands.md)。
 
 **实现：**模型只生成命令提案，用户 `/run` 后才启动。程序、参数、目录和超时预先展示；实际退出码、合并输出和截断标记回传。非零退出也继续模型分析；取消保留实际结果。进程无法确认清理时报告 unknown，阻止后续文件修改和命令，禁止直接重试。
 
@@ -183,7 +183,7 @@
 
 ## 2026-11-23：会话日志、恢复与上下文管理
 
-关联：[会话日志与恢复 PR #12](https://github.com/xiaoxiang0626/my-coding-agent/pull/12)，阶段 011，分支 `功能/011-会话日志恢复与上下文管理`；[交付与阅读顺序](prs/011-durable-sessions.md)。
+关联：[会话日志与恢复 PR #12](https://github.com/xiaoxiang0626/Whale-agent/pull/12)，阶段 011，分支 `功能/011-会话日志恢复与上下文管理`；[交付与阅读顺序](prs/011-durable-sessions.md)。
 
 **实现：**增加版本 1 JSONL 日志，记录实际模型请求、响应、完整成功历史、确认开始及实际结果。每次先刷盘再进行依赖操作；独占锁阻止并发写入。恢复不重放模型请求或副作用，旧提案失效；未完成确认补记 unknown 并锁住副作用权限。完整历史保留，上下文按完整轮次裁剪。
 
@@ -196,3 +196,11 @@
 **指标：**同一合成历史与当前输入，在 4000 字符预算下从请求 JSON 10914 字符降至 2856，省略 12 条完整历史消息；真实服务 prompt token 从 1394 降至 400，减少 994（约 71.3%）。完整成功历史未删除。此数据仅代表该样例，不说明真实编码任务质量、延迟或所有对话都获得相同收益。测试从 51 增至 61，直接运行依赖从 7 增至 8，增加 proper-lockfile。
 
 **边界：**日志按需开启、未加密、上限 128 MiB；完整历史仍驻留内存，无自动检索、语义摘要或日志轮转。上下文字符预算不是模型 token 上限。本路线 001–011 已完成，MCP、多 Agent 和完整插件体系仍需后续需求。
+
+## 2026-11-23：Whale Agent 仓库命名与公开
+
+**需求：**将仓库设为公开，英文名采用用户指定的 Whale agent，中文描述为“基于DSH逐个pr写出自己的coding agent”。[变更说明](prs/012-public-repository.md)。
+
+**命名限制与解决：**GitHub 仓库名不接受中文和空格，英文名使用 `Whale-agent`，中文内容放入仓库描述与 README 标题。原仓库 ID 保持一致，提交、分支和 PR 历史随改名保留；本地 origin 与文档链接同步更新。
+
+**公开前验证：**检查全部可达 Git 对象中的 253 个 blob，未匹配当前配置的已知密钥；敏感路径记录为 0。类型检查、61 项测试、构建、单次 CLI 启动与文档检查通过。最后通过无认证的 API 读取确认仓库公开。此次未改变运行行为，没有性能指标变化。
