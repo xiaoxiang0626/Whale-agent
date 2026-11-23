@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readResponse } from '../src/providers/wire.ts';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { execFile } from 'node:child_process';
@@ -67,6 +68,31 @@ test('畸形 JSON、空响应、不完整输出和工具调用不会被当成完
     const transport: typeof fetch = async () => new Response(body);
     await assert.rejects(createOpenAICompatibleProvider(config, transport).complete(request, new AbortController().signal),
       (error: Error) => error instanceof AppError && error.code === 'INVALID_RESPONSE');
+  }
+});
+
+test('工具定义和完整工具历史使用 Chat Completions 字段，保留推理但不接受畸形调用', async () => {
+  let body: unknown;
+  const transport: typeof fetch = async (_input, init) => {
+    body = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'tool_calls', message: { role: 'assistant', content: null,
+      reasoning_content: 'provider reasoning', tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'read_file', arguments: '{"path":"a.ts"}' } }] } }] }));
+  };
+  const response = await createOpenAICompatibleProvider(config, transport).complete({ model: 'test', tools: [{ name: 'read_file', description: 'read', parameters: { type: 'object' } }],
+    messages: [{ role: 'assistant', content: '', reasoningContent: 'prior', toolCalls: [{ id: 'old', name: 'read_file', arguments: '{}' }] },
+      { role: 'tool', toolCallId: 'old', content: '{"ok":false}' }],
+  }, new AbortController().signal);
+  assert.deepEqual(response, { text: '', reasoningContent: 'provider reasoning', toolCalls: [{ id: 'call-1', name: 'read_file', arguments: '{"path":"a.ts"}' }] });
+  assert.deepEqual(body, { model: 'test', stream: false,
+    tools: [{ type: 'function', function: { name: 'read_file', description: 'read', parameters: { type: 'object' } } }],
+    messages: [{ role: 'assistant', content: '', reasoning_content: 'prior', tool_calls: [{ id: 'old', type: 'function', function: { name: 'read_file', arguments: '{}' } }] },
+      { role: 'tool', tool_call_id: 'old', content: '{"ok":false}' }],
+  });
+  const tool = { id: 'a', type: 'function', function: { name: 'read_file', arguments: '{}' } };
+  assert.equal(readResponse({ choices: [{ finish_reason: 'tool_calls', message: { role: 'assistant', tool_calls: [tool] } }] }).text, '');
+  for (const calls of [[tool, tool], [{ ...tool, id: '' }], [{ ...tool, type: 'unsupported' }], [{ ...tool, function: { name: 'bad name', arguments: '{}' } }],
+    [{ ...tool, function: { name: 'read_file', arguments: {} } }], Array(9).fill(tool)]) {
+    assert.throws(() => readResponse({ choices: [{ finish_reason: 'tool_calls', message: { role: 'assistant', content: null, tool_calls: calls } }] }), /有效的完整文本或工具调用/);
   }
 });
 

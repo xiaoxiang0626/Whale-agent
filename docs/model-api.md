@@ -1,6 +1,6 @@
 # 接入模型 API
 
-当前支持非流式 OpenAI Chat Completions 文本协议。你可以配置自己的服务地址、模型名和 API Key；默认仍使用无网络调用的 `mock`。接口已经通过本地模拟 HTTP 服务、命令行子进程和 DeepSeek 两轮对话验证；其他服务需按实际配置验证。
+当前支持非流式 OpenAI Chat Completions 文本与函数调用。你可以配置自己的服务地址、模型名和 API Key；默认仍使用无网络调用的 `mock`。接口已经通过本地模拟 HTTP 服务、命令行子进程和 DeepSeek 工具循环验证；其他服务需按实际配置验证。
 
 ## 本地配置
 
@@ -27,9 +27,11 @@ my-coding-agent --env .env "请回复一句测试文字"
 
 ## 协议
 
-适配器向基础地址下的 `chat/completions` 发送一次 POST 请求，携带 `Authorization: Bearer …`，JSON 正文包含 `model`、`messages` 和 `stream: false`。例如基础地址 `/v1` 或 `/v1/` 都会请求 `/v1/chat/completions`。协议参见 [OpenAI Chat Completions 参考](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create)。
+适配器每次向基础地址下的 `chat/completions` 发送 POST 请求，携带 `Authorization: Bearer …`，JSON 正文包含 `model`、`messages` 和 `stream: false`，启用工具时还包含 `tools`。例如基础地址 `/v1` 或 `/v1/` 都会请求 `/v1/chat/completions`。协议参见 [DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
 
-适配器读取第一个 choice，要求 `finish_reason` 为 `stop`、消息角色为 `assistant`，并且 `content` 为非空字符串。其他厂商字段不会进入通用响应。当前不支持流式、工具调用、图像、Responses API、自定义认证头或带查询参数的基础地址。
+适配器读取第一个 choice，`stop` 要求有效的完整助手文本，`tool_calls` 要求 1–8 个有效函数调用。参数 JSON 由工具执行前校验，失败作为工具结果回传。调用 ID 连接助手调用与 `role: tool` 的结果；循环规则见[只读 Agent](agent-tools.md)。当前不支持流式、图像、Responses API、自定义认证头或带查询参数的基础地址。
+
+DeepSeek 默认思考模式下，工具请求需要回传此前助手消息的 `reasoning_content`。适配器保留并转换该字段，终端只显示最终回答和工具摘要。相关规则见 [DeepSeek 思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。不自动加入仅某一厂商支持的请求开关。
 
 ## 失败处理
 
@@ -45,4 +47,4 @@ ChatGPT Plus 与 OpenAI API 使用独立计费系统，Plus 订阅不等同于�
 
 测试覆盖配置校验、请求路径和认证头、非流式消息转换、固定错误诊断、无效响应、响应大小限制，以及真实本地 HTTP 传输。命令行子进程通过本地服务完成文本调用；超时测试让服务保留未完成的正文，取消测试在服务收到请求后发出取消信号。
 
-自动化测试不消耗用户模型额度。已另用本地 DeepSeek 配置验证两轮对话中的上下文引用，未记录密钥。其他真实服务的协议、认证、模型可用性和返回内容，需要配置后单独验证。
+默认自动化测试不消耗用户模型额度。`pnpm test:agent:live` 显式使用本地配置，验证临时文件的真实工具调用，并测量有无工具定义的首条请求 prompt token；会发起真实请求。检查不保存密钥或推理正文。其他真实服务的协议、认证、模型可用性和返回内容，需要配置后单独验证。

@@ -29,6 +29,11 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
     mounted.current = true;
     return () => { mounted.current = false; active.current?.abort(); };
   }, []);
+  useEffect(() => conversation.subscribe(event => {
+    if (!mounted.current) { return; }
+    if (event.type === 'model') { setStatus(`正在思考 · 第 ${event.step} 步`); }
+    else { setEntries(current => [...current, { role: event.ok ? 'notice' : 'error', text: `${event.name}：${event.summary}` }]); }
+  }), [conversation]);
   useInput((input, key) => {
     if (key.eventType === 'release') { return; }
     if (key.ctrl && input === 'c') {
@@ -80,6 +85,7 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
     columns, rows, model: conversation.model, provider: conversation.providerId,
     colorDepth: process.env['NO_COLOR'] === undefined ? (process.stdout.getColorDepth?.() ?? 1) : 1,
     entries, turns: conversation.turnCount, query, pending, status,
+    ...(conversation.workspace === undefined ? {} : { workspace: conversation.workspace }),
     onChange: setQuery, onSubmit: value => { void submit(value); },
   });
 }

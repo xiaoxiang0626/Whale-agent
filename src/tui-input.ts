@@ -28,7 +28,7 @@ export function InputLine(props: InputLineProps): ReactElement {
   const cursor = Math.min(position, parts.length);
   const { setCursorPosition } = useCursor();
   useInput((input, key) => {
-    if (key.eventType === 'release' || key.ctrl || key.meta || key.super || key.hyper || key.escape || key.tab
+    if (props.disabled || key.eventType === 'release' || key.ctrl || key.meta || key.super || key.hyper || key.escape || key.tab
       || key.upArrow || key.downArrow || key.pageUp || key.pageDown) { return; }
     if (key.return) { props.onSubmit(props.value); return; }
     if (key.leftArrow) { setPosition(Math.max(0, cursor - 1)); return; }
@@ -51,7 +51,7 @@ export function InputLine(props: InputLineProps): ReactElement {
       props.onChange([...parts.slice(0, cursor), ...inserted, ...parts.slice(cursor)].join(''));
       setPosition(cursor + inserted.length);
     }
-  }, { isActive: !props.disabled });
+  });
 
   let start = cursor;
   let before = 0;

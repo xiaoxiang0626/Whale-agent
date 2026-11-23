@@ -29,7 +29,7 @@ my-coding-agent --help
 my-coding-agent "解释这个项目"
 ```
 
-`package.json` 的 `bin` 将 `my-coding-agent` 指向 `dist/cli.js`，构建后的入口保留 Node.js shebang。`npm link` 在本机注册该命令，不发布到 npm；参见 [npm link 文档](https://docs.npmjs.com/cli/v11/commands/npm-link/)。注册后可以从其他目录调用，执行位置由终端当前目录确定，当前版本不会读取该目录的代码。
+`package.json` 的 `bin` 将 `my-coding-agent` 指向 `dist/cli.js`，构建后的入口保留 Node.js shebang。`npm link` 在本机注册该命令，不发布到 npm；参见 [npm link 文档](https://docs.npmjs.com/cli/v11/commands/npm-link/)。注册后可以从其他目录调用，默认将启动目录作为可读取工作区；可通过 `--workspace` 更改目录，或使用 `--no-tools` 关闭工具。
 
 终端中不提供任务参数会进入全屏交互界面，也可通过 `--interactive` 或 `-i` 显式进入。加 `--plain` 使用逐行会话；非终端交互自动使用逐行模式。通过参数提供任务时仍是单次调用。非终端输入且没有参数时显示帮助；带配置选项的非交互调用需要提供任务。连续输入、命令与取消行为见[交互会话](interactive.md)。
 
@@ -49,6 +49,9 @@ my-coding-agent "解释这个项目"
 | 无 | `CODING_AGENT_API_KEY` | 无 | 真实接口的 Bearer 密钥，只从本地环境读取 |
 | 无 | `CODING_AGENT_TIMEOUT_MS` | `30000` | 真实请求超时，单位毫秒 |
 | 无 | `CODING_AGENT_MAX_RESPONSE_BYTES` | `1048576` | 真实接口响应正文的字节上限 |
+| `--workspace` | `CODING_AGENT_WORKSPACE` | 当前目录 | 只读工具可访问的目录 |
+| `--max-steps` | `CODING_AGENT_MAX_STEPS` | `12` | 每轮 1–100 次模型请求上限 |
+| `--no-tools` | 无 | 不设置时提供只读工具 | 关闭模型工具，仅进行文本对话 |
 
 超时和响应字节上限均须为 1 至 2147483647 的整数。基础地址只接受 HTTP 或 HTTPS，不能携带凭据、查询参数或片段。
 
@@ -76,6 +79,8 @@ my-coding-agent --env .env.example "检查环境文件"
 | 服务端错误或网络失败 | `API_ERROR` 或 `NETWORK_ERROR`，退出码 1 |
 | 模型 API 超时 | `REQUEST_TIMEOUT`，退出码 1 |
 | 无效、不完整或过大的响应 | `INVALID_RESPONSE`，退出码 1 |
+| 模型请求或工具调用超过循环上限 | `AGENT_LIMIT`，本轮不提交历史 |
+| 未提供工具时模型请求工具 | `TOOL_UNAVAILABLE` |
 
 CLI 不打印任意异常的完整内容。模拟调用立即完成；HTTP 适配器的超时和取消通过本地服务验证，不依赖外部网络。
 
@@ -87,11 +92,13 @@ CLI 不打印任意异常的完整内容。模拟调用立即完成；HTTP 适�
 
 ## 验证范围
 
-测试覆盖适配器调用、配置、HTTP 失败，以及会话上下文、清空、并发拒绝、取消、输入结束和 CLI 子进程。TUI 测试另外验证中文与 emoji 编辑、缩放、历史翻页、取消和卸载。默认自动化测试仅访问本地模拟 HTTP 服务，不需要 API Key，也不修改测试进程的全局环境变量。
+测试覆盖适配器调用、配置、HTTP 失败、工具协议、循环、目录与文件限制，以及会话上下文、清空、并发拒绝、取消、输入结束和 CLI 子进程。TUI 测试另外验证工具摘要、中文与 emoji 编辑、缩放、历史翻页、取消和卸载。默认自动化测试仅访问本地模拟 HTTP 服务，不需要 API Key，也不修改测试进程的全局环境变量。
 
 真实伪终端检查使用开发依赖 `node-pty`、`@xterm/headless` 与其 Unicode 11 插件，直接启动 Node，不依赖 PowerShell 或其他 shell。仓库使用 node-pty 自带预编译模块，`pnpm-workspace.yaml` 显式禁止它的安装脚本；不支持的系统或架构会报错，需先解决安装问题。该检查验证构建产物、备用屏幕恢复和 130×34、80×24、40×12 缩放，不计入单元测试用例数。
 
 只有显式运行 `pnpm test:tui:pty --live` 才加载本地 `.env` 并发起一次真实文本请求，会消耗接口额度。验证结果只输出成功状态，不保存真实屏幕内容或密钥。`--capture` 仅在离线模式将模拟屏幕单元格写入 `.git/tui-captures.json`，供生成预览使用。
+
+`pnpm test:agent:live` 为独立的真实工具检查：读取临时夹具，验证工具结果回传，并比较有无工具定义的首条消息 prompt token。它显式使用本地 `.env`，不读取真实项目代码，只输出计数和通过状态。
 
 构建使用独立的 `tsconfig.build.json`，只输出 `src/`，并将相对导入的 `.ts` 扩展名改为 `.js`。`tests/` 与 `scripts/` 参与类型检查，不进入 `dist/`。
 

@@ -81,3 +81,20 @@ test('显式交互模式处理多条输入并退出，非交互空输入仍显�
   assert.match(result.stdout, /已收到任务：第二条/);
   assert.doesNotMatch(result.stdout, /已收到任务：不会发送/);
 });
+
+test('CLI 在指定工作区执行离线工具循环，拒绝凭据读取并支持纯文本模式', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'coding-agent-cli-tools-'));
+  const file = join(directory, 'fixture.txt');
+  await writeFile(file, 'public-code-fixture\n');
+  t.after(async () => { await unlink(file); await rmdir(directory); });
+  const result = cli('--workspace', directory, '演示读取 fixture.txt');
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /public-code-fixture/);
+  assert.match(result.stderr, /\[工具\] read_file/);
+  const denied = cli('--workspace', directory, '演示读取 .env');
+  assert.equal(denied.status, 0); assert.match(denied.stdout, /PATH_DENIED/);
+  const plain = cli('--workspace', directory, '--no-tools', '演示读取 fixture.txt');
+  assert.equal(plain.status, 0); assert.doesNotMatch(plain.stdout, /public-code-fixture/); assert.equal(plain.stderr, '');
+  const limited = cli('--workspace', directory, '--max-steps', '1', '演示读取 fixture.txt');
+  assert.equal(limited.status, 1); assert.match(limited.stderr, /AGENT_LIMIT/);
+});

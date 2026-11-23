@@ -1,29 +1,7 @@
 import type { OpenAICompatibleConfig } from '../config.ts';
 import { AppError } from '../errors.ts';
-import type { ModelProvider, ModelResponse } from './types.ts';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function readResponse(value: unknown): ModelResponse {
-  if (!isRecord(value) || !Array.isArray(value['choices'])) {
-    throw new AppError('INVALID_RESPONSE', '模型 API 响应缺少 choices。');
-  }
-  const choice: unknown = value['choices'][0];
-  if (!isRecord(choice) || choice['finish_reason'] !== 'stop') {
-    throw new AppError('INVALID_RESPONSE', '模型未返回完整文本；请检查输出限制或接口协议。');
-  }
-  const message = choice['message'];
-  if (!isRecord(message) || message['role'] !== 'assistant'
-    || typeof message['content'] !== 'string' || message['content'].trim().length === 0
-    || (message['tool_calls'] !== undefined && message['tool_calls'] !== null
-      && (!Array.isArray(message['tool_calls']) || message['tool_calls'].length > 0))
-    || (message['function_call'] !== undefined && message['function_call'] !== null)) {
-    throw new AppError('INVALID_RESPONSE', '模型 API 未返回有效的助手文本；当前适配器不执行工具调用。');
-  }
-  return { text: message['content'] };
-}
+import type { ModelProvider } from './types.ts';
+import { readResponse, toWireMessage } from './wire.ts';
 
 function httpError(status: number): AppError {
   if (status === 401 || status === 403) {
@@ -84,7 +62,9 @@ export function createOpenAICompatibleProvider(
         const response = await transport(new URL('chat/completions', config.baseUrl), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-          body: JSON.stringify({ model: request.model, messages: request.messages, stream: false }),
+          body: JSON.stringify({ model: request.model, messages: request.messages.map(toWireMessage), stream: false,
+            ...(request.tools === undefined ? {} : { tools: request.tools.map(tool => ({ type: 'function', function: tool })) }),
+          }),
           signal: combined,
           redirect: 'error',
         });

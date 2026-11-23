@@ -36,12 +36,15 @@ export async function runInteractive(
   };
   terminal.on('SIGINT', interrupt);
   terminal.once('close', closed);
+  const unsubscribe = conversation.subscribe(event => {
+    if (event.type === 'tool') { output.write(`[工具] ${event.name}：${event.summary}\n`); }
+  });
   terminal.setPrompt('你> ');
   output.write(renderDeepSeekLogo({
     columns: output.columns ?? 80, rows: output.rows ?? 30,
     colorDepth: output.isTTY === true && process.env['NO_COLOR'] === undefined ? (output.getColorDepth?.() ?? 1) : 1,
   }));
-  output.write(`my-coding-agent · 交互会话\n模型：${conversation.model} · 适配器：${conversation.providerId}\n${commands}\n\n`);
+  output.write(`my-coding-agent · 交互会话\n模型：${conversation.model} · 适配器：${conversation.providerId}\n${conversation.workspace === undefined ? '' : `工作区：${conversation.workspace}\n`}${commands}\n\n`);
   terminal.prompt();
   try {
     for await (const line of terminal) {
@@ -70,6 +73,7 @@ export async function runInteractive(
   } finally {
     terminal.off('SIGINT', interrupt);
     terminal.off('close', closed);
+    unsubscribe();
     terminal.close();
     output.write('会话已结束。\n');
   }

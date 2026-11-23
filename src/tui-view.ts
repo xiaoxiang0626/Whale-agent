@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { Box, Text, useInput } from 'ink';
 import wrapAnsi from 'wrap-ansi';
 import { stripVTControlCharacters } from 'node:util';
+import { basename } from 'node:path';
 import { renderDeepSeekLogo } from './mascot.ts';
 import { InputLine } from './tui-input.ts';
 
@@ -54,6 +55,7 @@ export interface TerminalViewProps {
   readonly query: string;
   readonly pending: boolean;
   readonly status: string;
+  readonly workspace?: string;
   readonly onChange: (value: string) => void;
   readonly onSubmit: (value: string) => void;
 }
@@ -118,7 +120,8 @@ export function TerminalView(props: TerminalViewProps): ReactElement {
     height: layout.bodyHeight, flexShrink: 0, flexDirection: 'column', paddingX: 1, overflow: 'hidden' },
   h(Text, { color: 'cyan', bold: true }, 'DeepSeek · 会话状态'),
   h(Text, null, mascot),
-  h(Text, { dimColor: true, wrap: 'truncate-end' }, `适配器 ${props.provider}`)) : null;
+  h(Text, { dimColor: true, wrap: 'truncate-end' }, `适配器 ${props.provider}`),
+  props.workspace === undefined ? null : h(Text, { dimColor: true, wrap: 'truncate-end' }, `工作区 ${basename(props.workspace)}`)) : null;
   const input = h(Box, { ...frame, height: layout.compact ? 1 : 3, flexShrink: 0,
     borderColor: props.pending ? 'yellow' : 'cyan', overflow: 'hidden' },
   h(Text, { color: 'cyan' }, '你 › '),

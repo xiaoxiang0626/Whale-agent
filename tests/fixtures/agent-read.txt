@@ -1,0 +1,2 @@
+AGENT_READ_FIXTURE
+只读工具验证通过。
