@@ -10,7 +10,7 @@
 4. `runAgent()` 调用注入的 `ModelProvider.complete()`；模型请求工具时，串行执行已授权工具，将结果带入下一次请求。
 5. 最终回答成功后，把本轮用户输入、工具调用、结果与助手回复一起加入历史，再输出文本；单次失败时设置非零退出码，交互失败时保留原上下文。
 
-CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`，单次默认创建当前工作区只读工具，交互默认增加待确认文件提案。模拟响应通常回显输入，显式“演示读取/列出”请求可执行本地工具；真实适配器按配置发送 Chat Completions 请求。
+CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`，单次默认创建当前工作区只读工具，交互默认增加待确认文件和命令提案。模拟响应通常回显输入，显式“演示读取/列出”请求可执行本地工具；真实适配器按配置发送 Chat Completions 请求。
 
 ## 模块职责
 
@@ -23,6 +23,8 @@ CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`，单次默认创
 | [agent-loop.ts](../src/agent-loop.ts) | 模型与工具循环、次数限制和进度事件 |
 | [agent-config.ts](../src/agent-config.ts) | 工作区与循环限制解析 |
 | [tools/workspace.ts](../src/tools/workspace.ts) | 路径授权、忽略规则、有限文本读取 |
+| [tools/commands.ts](../src/tools/commands.ts) | 命令提案、确认和测试反馈 |
+| [tools/process.ts](../src/tools/process.ts) | 前台进程、输出限制与取消清理 |
 | [tools/editing.ts](../src/tools/editing.ts) | 提案、diff 与显式确认写入 |
 | [display.ts](../src/display.ts) | 移除终端控制符，仅作用于显示 |
 | [tools/read-only.ts](../src/tools/read-only.ts) | 工具定义、JSON 参数校验与预期失败结果 |

@@ -63,6 +63,7 @@ export async function createEditingTools(directory: string): Promise<ToolSet> {
     },
     async action(command, id, signal) {
       signal.throwIfAborted();
+      if (command === 'run') { return failure(new FileToolError('INVALID_ACTION', '文件修改请使用 /apply 编号 确认。')); }
       const proposal = pending.get(id);
       if (proposal === undefined) { return failure(new FileToolError('UNKNOWN_PROPOSAL', '修改编号不存在或已经处理。')); }
       pending.delete(id);

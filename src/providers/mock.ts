@@ -22,6 +22,9 @@ export function createMockProvider(): ModelProvider {
         throw new AppError('EMPTY_PROMPT', '请输入非空任务。');
       }
       const demo = /^演示(读取|列出) (.+)$/.exec(message.content.trim());
+      if (message.content.startsWith('演示命令 ') && request.tools?.some(tool => tool.name === 'propose_command')) {
+        return { text: '', toolCalls: [{ id: 'mock-command', name: 'propose_command', arguments: message.content.slice('演示命令 '.length) }] };
+      }
       if (message.content.startsWith('演示修改 ') && request.tools?.some(tool => tool.name === 'propose_file')) {
         return { text: '', toolCalls: [{ id: 'mock-proposal', name: 'propose_file', arguments: message.content.slice('演示修改 '.length) }] };
       }

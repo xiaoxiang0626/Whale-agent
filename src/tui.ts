@@ -53,9 +53,9 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
       conversation.clear(); setEntries([]); setStatus('上下文已清空'); return;
     }
     if (text === '/help') {
-      setEntries(current => [...current, { role: 'notice', text: '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /reject 编号 拒绝。PgUp/PgDn 浏览消息，Ctrl+C 或 Esc 取消请求。' }]); return;
+      setEntries(current => [...current, { role: 'notice', text: '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /run 编号 执行 · /reject 编号 拒绝。PgUp/PgDn 浏览消息，Ctrl+C 或 Esc 取消请求。' }]); return;
     }
-    if (text.startsWith('/') && !/^\/(apply|reject) [a-zA-Z0-9-]+$/.test(text)) {
+    if (text.startsWith('/') && !/^\/(apply|reject|run) [a-zA-Z0-9-]+$/.test(text)) {
       setEntries(current => [...current, { role: 'error', text: '未知命令，请输入 /help。' }]); return;
     }
     const controller = new AbortController(); active.current = controller;

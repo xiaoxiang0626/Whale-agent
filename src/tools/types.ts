@@ -6,6 +6,7 @@ export interface ToolResult {
   readonly content: string;
   readonly summary: string;
   readonly preview?: string;
+  readonly continueModel?: boolean;
 }
 
 /** 当前会话已授予的工具能力。 */
@@ -16,7 +17,7 @@ export interface ToolSet {
   /** @param call 模型调用。 @param signal 本轮取消信号。 @returns 有界结果，预期失败也作为结果返回。 */
   execute(call: ToolCall, signal: AbortSignal): Promise<ToolResult>;
   /** @param command 用户确认或拒绝命令。 @param id 预览编号。 @param signal 取消信号。 @returns 操作的实际结果。 */
-  action?(command: 'apply' | 'reject', id: string, signal: AbortSignal): Promise<ToolResult>;
+  action?(command: 'apply' | 'reject' | 'run', id: string, signal: AbortSignal): Promise<ToolResult>;
   /** 丢弃尚未确认的修改。 */
   clearPending?(): void;
 }

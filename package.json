@@ -23,10 +23,12 @@
     "test:tui:pty": "node scripts/test-tui-pty.ts",
     "test:agent:live": "node scripts/test-agent-live.ts",
     "test:editing:live": "node scripts/test-editing-live.ts",
+    "test:commands:live": "node scripts/test-commands-live.ts",
     "build": "tsc -p tsconfig.build.json",
     "check": "pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
+    "@types/cross-spawn": "6.0.6",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@xterm/addon-unicode11": "0.9.0",
@@ -37,6 +39,7 @@
     "typescript": "6.0.3"
   },
   "dependencies": {
+    "cross-spawn": "7.0.6",
     "diff": "9.0.0",
     "ignore": "7.0.16",
     "ink": "8.0.0",
