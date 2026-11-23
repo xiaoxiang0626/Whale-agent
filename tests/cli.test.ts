@@ -12,6 +12,11 @@ function cli(...args: string[]) {
 }
 
 test('CLI 可显示帮助并运行不依赖密钥的演示', () => {
+  const empty = cli();
+  assert.equal(empty.error, undefined);
+  assert.equal(empty.status, 0);
+  assert.equal(empty.stderr, '');
+  assert.match(empty.stdout, /用法：my-coding-agent/);
   const help = cli('--help');
   assert.equal(help.error, undefined);
   assert.equal(help.status, 0);
@@ -25,7 +30,7 @@ test('CLI 可显示帮助并运行不依赖密钥的演示', () => {
 });
 
 test('CLI 为无效参数、空任务和未支持的 provider 返回非零状态', () => {
-  for (const args of [[], ['--unknown'], ['--model'], ['--provider', 'real-api', 'task']]) {
+  for (const args of [[' '], ['--unknown'], ['--model'], ['--provider', 'mock'], ['--provider', 'real-api', 'task']]) {
     const result = cli(...args);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1);

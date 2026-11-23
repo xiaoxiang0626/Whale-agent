@@ -4,6 +4,10 @@
   "private": true,
   "description": "A coding agent built in small, documented pull requests.",
   "type": "module",
+  "bin": {
+    "my-coding-agent": "dist/cli.js"
+  },
+  "files": ["dist"],
   "packageManager": "pnpm@11.28.5",
   "engines": {
     "node": ">=24.12.0"
