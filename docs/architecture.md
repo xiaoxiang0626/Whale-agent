@@ -4,7 +4,7 @@
 
 ## 一次任务怎样运行
 
-1. `src/cli.ts` 解析任务文本、`--provider` 和 `--model`。
+1. `my-coding-agent` 启动构建后的 `dist/cli.js`，对应源码为 `src/cli.ts`；入口解析任务文本、`--provider` 和 `--model`，无参数时显示帮助。
 2. `resolveConfig()` 合并 CLI 参数、环境变量和默认值，拒绝无效配置。
 3. `runTask()` 检查取消状态和空输入，把任务转换为一条 `user` 消息。
 4. 注入的 `ModelProvider.complete()` 接收模型名、消息列表和取消信号。
