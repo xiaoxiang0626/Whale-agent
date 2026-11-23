@@ -80,6 +80,10 @@ try {
   await waitFor(() => screen().includes(live ? '界面连接成功' : '已收到任务：你好，小鲸') && screen().includes('对话 · 1 轮'), 'response', live ? 120000 : 15000);
   capture('reply-130x34');
   if (!live) {
+    await type('演示读取 tests/fixtures/agent-read.txt'); child.write('\r');
+    await waitFor(() => screen().includes('AGENT_READ_FIXTURE') && screen().includes('read_file：读取'), 'real file tool');
+    await waitFor(() => screen().includes('对话 · 2 轮'), 'tool turn');
+    capture('tool-130x34');
     const draft = '中文🐳'.repeat(25) + '尾部';
     await type(draft, '尾部');
     await resize(80, 24);
@@ -91,7 +95,7 @@ try {
     child.write('\r');
     await waitFor(() => screen().includes('输入消息或 /help'), 'long draft sent');
     await resize(130, 34);
-    await waitFor(() => screen().includes('对话 · 2 轮'), 'draft preserved after resize');
+    await waitFor(() => screen().includes('对话 · 3 轮'), 'draft preserved after resize');
     const messages = Array.from({ length: terminal.rows }, (_, row) =>
       terminal.buffer.active.getLine(terminal.buffer.active.viewportY + row)?.translateToString(true, 0, terminal.cols - 34) ?? '').join('');
     assert.ok(messages.replace(/[\s│╭╮╰╯─]/g, '').includes(`已收到任务：${draft}`), 'Entire draft should survive resize');

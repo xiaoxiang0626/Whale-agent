@@ -2,6 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveConfig } from '../src/config.ts';
 import { AppError } from '../src/errors.ts';
+import { resolveAgentConfig } from '../src/agent-config.ts';
+
+test('工作区与循环限制有明确默认值，CLI 可覆盖环境，非法限制在启动时失败', () => {
+  assert.deepEqual(resolveAgentConfig({}, {}, 'cwd'), { workspace: 'cwd', maxSteps: 12 });
+  assert.deepEqual(resolveAgentConfig({ CODING_AGENT_WORKSPACE: 'env', CODING_AGENT_MAX_STEPS: '3' }, { workspace: 'cli', maxSteps: '4' }, 'cwd'),
+    { workspace: 'cli', maxSteps: 4 });
+  for (const value of ['', '0', '101', '-1', '1.5']) {
+    assert.throws(() => resolveAgentConfig({}, { maxSteps: value }, 'cwd'), /max-steps/);
+  }
+});
 
 test('默认运行离线适配器，CLI 配置优先于环境变量', () => {
   assert.deepEqual(resolveConfig({}), { provider: 'mock', model: 'mock-v1' });

@@ -9,6 +9,7 @@ import { Conversation } from '../src/conversation.ts';
 import type { ModelProvider, ModelRequest } from '../src/providers/types.ts';
 import { TerminalApp } from '../src/tui.ts';
 import { TerminalView } from '../src/tui-view.ts';
+import type { AgentOptions } from '../src/agent-loop.ts';
 
 async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   const deadline = Date.now() + 5000;
@@ -18,8 +19,8 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   }
 }
 
-function setup(provider: ModelProvider) {
-  const conversation = new Conversation(provider, 'test-model');
+function setup(provider: ModelProvider, options: AgentOptions = {}) {
+  const conversation = new Conversation(provider, 'test-model', options);
   const app = render(h(TerminalApp, { conversation }));
   const frame = () => stripVTControlCharacters(app.lastFrame() ?? '');
   return { app, frame, conversation, close: () => { app.unmount(); app.cleanup(); } };
@@ -48,6 +49,23 @@ test('宽屏、普通和窄窗口保留输入区，中文消息不越过终端�
     if (columns >= 100) { assert.match(frame, /DeepSeek · 会话状态/); }
     else { assert.doesNotMatch(frame, /DeepSeek · 会话状态/); }
   }
+});
+
+test('TUI 展示实际工具进度，显示记录不展示工具正文或模型推理', async t => {
+  let calls = 0;
+  const ui = setup({ id: 'tool-ui', async complete() {
+    calls++;
+    return calls === 1 ? { text: '', reasoningContent: 'private-reasoning', toolCalls: [{ id: 'read', name: 'read_file', arguments: '{}' }] }
+      : { text: '代码说明完成', reasoningContent: 'private-reasoning' };
+  } }, { tools: { workspace: '/workspace', context: 'read', definitions: [], async execute() {
+    return { ok: true, content: 'private-file-body', summary: '读取 app.ts，4 行' };
+  } } });
+  t.after(ui.close);
+  await submit(ui, '解释');
+  await waitFor(() => ui.frame().includes('代码说明完成'), 'Agent did not finish');
+  assert.match(ui.frame(), /read_file：读取 app.ts/);
+  assert.doesNotMatch(ui.frame(), /private-file-body|private-reasoning/);
+  assert.equal(ui.conversation.turnCount, 1);
 });
 
 test('中文、emoji 和组合字符按字素编辑，缩放保留草稿并提交完整文本', async t => {

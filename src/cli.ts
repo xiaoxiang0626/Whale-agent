@@ -8,6 +8,8 @@ import { runInteractive } from './interactive.ts';
 import { resolveConfig } from './config.ts';
 import { createProvider } from './providers/index.ts';
 import { runTask } from './task.ts';
+import { resolveAgentConfig } from './agent-config.ts';
+import { createReadOnlyTools } from './tools/read-only.ts';
 
 const help = `my-coding-agent — 编码 Agent 学习项目
 
@@ -21,13 +23,16 @@ const help = `my-coding-agent — 编码 Agent 学习项目
   --env           显式加载本地环境文件
   --interactive, -i  显式进入交互会话，也可接受管道中的逐行输入
   --plain         使用逐行纯文本会话，不进入终端界面
+  --workspace     可读取的工作区目录（默认当前目录）
+  --max-steps     每轮模型请求上限（默认 12，最多 100）
+  --no-tools      仅文本对话，不向模型提供文件工具
 
 示例：my-coding-agent "解释这个项目"
 源码开发：pnpm dev "解释这个项目"
 交互命令：/help、/clear、/exit
 
 默认使用 mock 离线演示；openai-compatible 可连接自己的模型 API。
-当前不会读取代码、修改文件或执行命令。`;
+文件工具可列出和读取工作区，当前不修改文件或执行命令。`;
 
 function parseInput() {
   try {
@@ -40,6 +45,9 @@ function parseInput() {
         env: { type: 'string' },
         interactive: { type: 'boolean', short: 'i' },
         plain: { type: 'boolean' },
+        workspace: { type: 'string' },
+        'max-steps': { type: 'string' },
+        'no-tools': { type: 'boolean' },
       },
       allowPositionals: true,
       strict: true,
@@ -78,10 +86,17 @@ async function main(): Promise<void> {
     ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }),
   });
   const provider = createProvider(config);
+  const agentConfig = resolveAgentConfig(process.env, {
+    ...(values.workspace === undefined ? {} : { workspace: values.workspace }),
+    ...(values['max-steps'] === undefined ? {} : { maxSteps: values['max-steps'] }),
+  }, process.cwd());
+  const options = { maxSteps: agentConfig.maxSteps,
+    ...(values['no-tools'] === true ? {} : { tools: await createReadOnlyTools(agentConfig.workspace) }),
+  };
   if (interactive) {
     if (values.plain !== true && process.stdin.isTTY === true && process.stdout.isTTY === true) {
       const { runTui } = await import('./tui.ts');
-      await runTui(new Conversation(provider, config.model));
+      await runTui(new Conversation(provider, config.model, options));
       return;
     }
     const terminal = createInterface({
@@ -92,7 +107,7 @@ async function main(): Promise<void> {
     const interrupt = () => { terminal.emit('SIGINT'); };
     process.on('SIGINT', interrupt);
     try {
-      await runInteractive(new Conversation(provider, config.model), terminal, process.stdout, process.stderr);
+      await runInteractive(new Conversation(provider, config.model, options), terminal, process.stdout, process.stderr);
     } finally {
       process.off('SIGINT', interrupt);
     }
@@ -105,6 +120,8 @@ async function main(): Promise<void> {
     const response = await runTask(provider, {
       model: config.model,
       prompt: positionals.join(' '),
+      options,
+      onEvent: event => { if (event.type === 'tool') { process.stderr.write(`[工具] ${event.name}：${event.summary}\n`); } },
     }, controller.signal);
     process.stdout.write(`${response.text}\n`);
   } catch (error) {
