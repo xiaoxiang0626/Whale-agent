@@ -1,5 +1,8 @@
 /** 用户可以按错误码识别的失败类别。 */
-export type ErrorCode = 'INVALID_ARGUMENTS' | 'INVALID_CONFIG' | 'EMPTY_PROMPT';
+export type ErrorCode =
+  | 'INVALID_ARGUMENTS' | 'INVALID_CONFIG' | 'EMPTY_PROMPT'
+  | 'AUTHENTICATION_FAILED' | 'RATE_LIMITED' | 'API_ERROR'
+  | 'NETWORK_ERROR' | 'REQUEST_TIMEOUT' | 'INVALID_RESPONSE';
 
 /** 适合直接展示给 CLI 用户的错误，不携带凭据或完整模型请求。 */
 export class AppError extends Error {

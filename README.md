@@ -2,7 +2,7 @@
 
 参考 DeepSeek Harness，逐个 PR 开发自己的命令行编码 Agent，并用中文文档解释每一步。
 
-当前可以运行 CLI、解析配置，通过可替换的模型适配接口完成一次离线演示。模拟响应会标明「未调用模型 API」。真实 API、读取代码、修改文件和执行命令属于[后续 PR](docs/roadmap.md)。
+当前可以运行 CLI、解析配置，并选择离线模拟或自己的 OpenAI 兼容文本 API。默认模拟响应会标明「未调用模型 API」。读取代码、修改文件和执行命令属于[后续需求](docs/roadmap.md)。
 
 ## 启动
 
@@ -41,11 +41,16 @@ pnpm start "解释这个项目"
 - [逐个 PR 的开发路线](docs/roadmap.md)：各阶段的交付与验收条件。
 - [第一份 PR 的说明](docs/prs/001-provider-foundation.md)：本次范围、验证证据和阅读顺序。
 - [命令行入口](docs/prs/002-cli-entry.md)：命令安装、帮助行为和交付范围。
+- [接入模型 API](docs/model-api.md)：本地配置、请求协议、错误与验证范围。
 
 ## 自己的 API
 
-目前只启用 `mock`。确认你的 API 协议后，在 `src/providers/` 增加适配器，任务逻辑继续依赖 `ModelProvider`。接入所需的信息包括 API 协议、Base URL、模型名，以及一份脱敏的请求和响应示例。
+使用 `openai-compatible` 可连接支持非流式 Chat Completions 的模型服务。按[接入指南](docs/model-api.md)在本地配置地址、模型名和密钥，再运行：
 
-API Key 后续从本地环境变量读取，不写入代码、文档或 Git。未知 provider 会报错，避免把未接通的 API 当作成功演示。
+```sh
+my-coding-agent --env .env "你的任务"
+```
+
+API Key 从本地环境读取，不写入代码、文档或 Git。接口已通过本地模拟 HTTP 服务验证，用户实际服务尚未验证。ChatGPT Plus 与普通 API 独立计费，详见[接入指南](docs/model-api.md#费用与订阅)。
 
 项目通过本地链接安装命令，未发布 npm 包。
