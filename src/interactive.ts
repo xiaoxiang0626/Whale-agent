@@ -2,6 +2,16 @@ import type { Interface } from 'node:readline';
 import type { Writable } from 'node:stream';
 import type { Conversation } from './conversation.ts';
 import { formatError } from './errors.ts';
+import { renderWhaleMascot } from './mascot.ts';
+
+/** 交互输出流，可提供终端尺寸和颜色能力。 */
+export interface InteractiveOutput extends Writable {
+  readonly isTTY?: boolean;
+  readonly columns?: number;
+  readonly rows?: number;
+  /** @returns 终端支持的颜色位数。 */
+  getColorDepth?(): number;
+}
 
 const commands = '/help 显示帮助 · /clear 清空上下文 · /exit 退出\n请求期间 Ctrl+C 取消本次请求；空闲时 Ctrl+C 退出。';
 
@@ -14,7 +24,7 @@ const commands = '/help 显示帮助 · /clear 清空上下文 · /exit 退出\n
  * @returns 会话退出后完成。
  */
 export async function runInteractive(
-  conversation: Conversation, terminal: Interface, output: Writable, errors: Writable,
+  conversation: Conversation, terminal: Interface, output: InteractiveOutput, errors: Writable,
 ): Promise<void> {
   let active: AbortController | undefined;
   let exiting = false;
@@ -27,6 +37,10 @@ export async function runInteractive(
   terminal.on('SIGINT', interrupt);
   terminal.once('close', closed);
   terminal.setPrompt('你> ');
+  output.write(renderWhaleMascot({
+    columns: output.columns ?? 80, rows: output.rows ?? 30,
+    colorDepth: output.isTTY === true && process.env['NO_COLOR'] === undefined ? (output.getColorDepth?.() ?? 1) : 1,
+  }));
   output.write(`my-coding-agent · 交互会话\n模型：${conversation.model} · 适配器：${conversation.providerId}\n${commands}\n\n`);
   terminal.prompt();
   try {

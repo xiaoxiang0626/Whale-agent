@@ -35,6 +35,7 @@ test('CLI 可显示帮助并运行不依赖密钥的演示', () => {
   assert.equal(result.stderr, '');
   assert.match(result.stdout, /模拟响应/);
   assert.match(result.stdout, /解释这个项目/);
+  assert.doesNotMatch(result.stdout, /鲸鱼娘|\u001b\[/);
 });
 
 test('显式环境文件可以加载，CLI 和已有环境变量优先，读取失败不会泄露文件内容', async t => {
@@ -74,6 +75,8 @@ test('显式交互模式处理多条输入并退出，非交互空输入仍显�
   assert.equal(result.status, 0);
   assert.equal(result.stderr, '');
   assert.match(result.stdout, /交互会话/);
+  assert.match(result.stdout, /鲸鱼娘/);
+  assert.doesNotMatch(result.stdout, /\u001b\[/);
   assert.match(result.stdout, /已收到任务：第一条/);
   assert.match(result.stdout, /已收到任务：第二条/);
   assert.doesNotMatch(result.stdout, /已收到任务：不会发送/);

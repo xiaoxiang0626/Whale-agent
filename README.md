@@ -44,6 +44,8 @@ my-coding-agent --env .env --interactive
 
 出现 `你> ` 后输入消息并回车。输入 `/help` 查看帮助、`/clear` 清空上下文、`/exit` 退出。请求期间按 Ctrl+C 取消本次请求，空闲时按 Ctrl+C 退出。成功问答保留在当前进程中；退出后不保存历史。完整说明见[交互会话](docs/interactive.md)。
 
+交互启动时显示鲸鱼娘欢迎形象：支持颜色的终端显示蓝发、女仆头饰与鲸鱼尾巴的像素字符画；无色或窄窗口显示简化字符画。形象在本地绘制，不调用模型，详见[终端形象](docs/mascot.md)。
+
 ## 技术文档
 
 - [架构与 Harness 对照](docs/architecture.md)：各模块的职责和调用过程。
