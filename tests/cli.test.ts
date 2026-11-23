@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { mkdtemp, writeFile, unlink, rmdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -97,4 +97,20 @@ test('CLI 在指定工作区执行离线工具循环，拒绝凭据读取并支�
   assert.equal(plain.status, 0); assert.doesNotMatch(plain.stdout, /public-code-fixture/); assert.equal(plain.stderr, '');
   const limited = cli('--workspace', directory, '--max-steps', '1', '演示读取 fixture.txt');
   assert.equal(limited.status, 1); assert.match(limited.stderr, /AGENT_LIMIT/);
+});
+
+test('CLI 交互模式显示预览并接受明确确认，单次和只读模式均不提供写入工具', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'agent-cli-edit-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const demo = '演示修改 ' + JSON.stringify({ path: 'new.txt', content: 'confirmed\n', expected_sha256: null });
+  const env = { ...process.env, CODING_AGENT_PROVIDER: 'mock', CODING_AGENT_MODEL: 'mock-v1' };
+  for (const args of [['--workspace', root, demo], ['--workspace', root, '-i', '--read-only']]) {
+    assert.equal(cliWithEnv(args, env, `${demo}\n/apply edit-1\n/exit\n`).status, 0);
+    await assert.rejects(readFile(join(root, 'new.txt')), { code: 'ENOENT' });
+  }
+  const result = cliWithEnv(['--workspace', root, '-i'], env, `${demo}\n/apply edit-1\n/exit\n`);
+  assert.equal(result.status, 0); assert.equal(result.stderr, '');
+  assert.match(result.stdout, /待确认 edit-1/); assert.match(result.stdout, /\+confirmed/);
+  assert.match(result.stdout, /已应用 edit-1/);
+  assert.equal(await readFile(join(root, 'new.txt'), 'utf8'), 'confirmed\n');
 });

@@ -1,6 +1,8 @@
 /** 用真实伪终端验证构建后的 CLI；默认离线，--live 显式使用本地 .env。 */
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import pty from 'node-pty';
 import xterm from '@xterm/headless';
@@ -8,6 +10,9 @@ import unicode11 from '@xterm/addon-unicode11';
 
 const { values } = parseArgs({ options: { live: { type: 'boolean' }, capture: { type: 'boolean' } } });
 const live = values.live === true;
+const workspace = await mkdtemp(join(tmpdir(), 'agent-tui-pty-'));
+await mkdir(join(workspace, 'tests/fixtures'), { recursive: true });
+await writeFile(join(workspace, 'tests/fixtures/agent-read.txt'), 'AGENT_READ_FIXTURE\n');
 const terminal = new xterm.Terminal({ cols: 130, rows: 34, allowProposedApi: true });
 terminal.loadAddon(new unicode11.Unicode11Addon());
 terminal.unicode.activeVersion = '11';
@@ -19,7 +24,7 @@ for (const [key, value] of Object.entries(process.env)) {
 env['FORCE_COLOR'] = '3'; env['COLORTERM'] = 'truecolor';
 if (!live) { env['CODING_AGENT_API_KEY'] = ''; }
 const args = live ? ['--env', '.env'] : ['--provider', 'mock', '--model', 'mock-v1'];
-const child = pty.spawn(process.execPath, ['dist/cli.js', ...args], {
+const child = pty.spawn(process.execPath, ['dist/cli.js', ...args, '--workspace', workspace], {
   cwd: process.cwd(), cols: terminal.cols, rows: terminal.rows, name: 'xterm-256color', env,
 });
 let raw = '';
@@ -84,6 +89,14 @@ try {
     await waitFor(() => screen().includes('AGENT_READ_FIXTURE') && screen().includes('read_file：读取'), 'real file tool');
     await waitFor(() => screen().includes('对话 · 2 轮'), 'tool turn');
     capture('tool-130x34');
+    const proposal = '演示修改 ' + JSON.stringify({ path: 'edited.txt', content: 'PTY_CONFIRMED\n', expected_sha256: null });
+    await type(proposal, '"expected_sha256":null}'); child.write('\r');
+    await waitFor(() => screen().includes('待确认 edit-1') && screen().includes('+PTY_CONFIRMED'), 'file preview');
+    await assert.rejects(readFile(join(workspace, 'edited.txt')), { code: 'ENOENT' });
+    capture('diff-130x34');
+    await type('/apply edit-1'); child.write('\r');
+    await waitFor(() => screen().includes('已应用 edit-1') && screen().includes('对话 · 4 轮'), 'confirmed write');
+    assert.equal(await readFile(join(workspace, 'edited.txt'), 'utf8'), 'PTY_CONFIRMED\n');
     const draft = '中文🐳'.repeat(25) + '尾部';
     await type(draft, '尾部');
     await resize(80, 24);
@@ -95,14 +108,14 @@ try {
     child.write('\r');
     await waitFor(() => screen().includes('输入消息或 /help'), 'long draft sent');
     await resize(130, 34);
-    await waitFor(() => screen().includes('对话 · 3 轮'), 'draft preserved after resize');
+    await waitFor(() => screen().includes('对话 · 5 轮'), 'draft preserved after resize');
     const messages = Array.from({ length: terminal.rows }, (_, row) =>
       terminal.buffer.active.getLine(terminal.buffer.active.viewportY + row)?.translateToString(true, 0, terminal.cols - 34) ?? '').join('');
     assert.ok(messages.replace(/[\s│╭╮╰╯─]/g, '').includes(`已收到任务：${draft}`), 'Entire draft should survive resize');
     await type('/clear'); child.write('\r');
     await waitFor(() => screen().includes('上下文已清空') && screen().includes('对话 · 0 轮'), 'clear');
     await type('/help'); child.write('\r');
-    await waitFor(() => screen().includes('PgUp/PgDn 浏览消息'), 'help');
+    await waitFor(() => screen().includes('/apply 编号'), 'help');
   }
   await type('/exit'); child.write('\r');
   const deadline = Date.now() + 10000;
@@ -118,4 +131,5 @@ try {
   // Windows 的 ConPTY 在子进程正常退出后仍持有输入管道，需要显式释放。
   if (exitResult === undefined || process.platform === 'win32') { child.kill(); }
   dataListener.dispose(); replyListener.dispose(); exitListener.dispose(); terminal.dispose();
+  await rm(workspace, { recursive: true, force: true });
 }

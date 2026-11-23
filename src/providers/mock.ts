@@ -11,6 +11,9 @@ export function createMockProvider(): ModelProvider {
     async complete(request, signal) {
       signal.throwIfAborted();
       const last = request.messages.at(-1);
+      if (last?.role === 'system' && last.content.startsWith('[已确认操作结果]')) {
+        return { text: `[模拟响应，未调用模型 API]\n${last.content}` };
+      }
       if (last?.role === 'tool') {
         return { text: `[模拟响应，未调用模型 API]\n工具返回：${last.content}` };
       }
@@ -19,6 +22,9 @@ export function createMockProvider(): ModelProvider {
         throw new AppError('EMPTY_PROMPT', '请输入非空任务。');
       }
       const demo = /^演示(读取|列出) (.+)$/.exec(message.content.trim());
+      if (message.content.startsWith('演示修改 ') && request.tools?.some(tool => tool.name === 'propose_file')) {
+        return { text: '', toolCalls: [{ id: 'mock-proposal', name: 'propose_file', arguments: message.content.slice('演示修改 '.length) }] };
+      }
       if (demo !== null && request.tools !== undefined) {
         return { text: '', toolCalls: [{ id: 'mock-tool-call', name: demo[1] === '读取' ? 'read_file' : 'list_files', arguments: JSON.stringify({ path: demo[2] }) }] };
       }

@@ -2,7 +2,7 @@ import { createElement as h, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Box, Text, useInput } from 'ink';
 import wrapAnsi from 'wrap-ansi';
-import { stripVTControlCharacters } from 'node:util';
+import { displayText } from './display.ts';
 import { basename } from 'node:path';
 import { renderDeepSeekLogo } from './mascot.ts';
 import { InputLine } from './tui-input.ts';
@@ -62,11 +62,6 @@ export interface TerminalViewProps {
 
 const labels = { user: '你', assistant: '助手', notice: '提示', error: '错误' };
 const colors = { user: 'cyan', assistant: undefined, notice: 'gray', error: 'red' };
-
-function displayText(value: string): string {
-  return stripVTControlCharacters(value).replace(/\r\n/g, '\n').replace(/\r/g, '')
-    .replace(/\t/g, '    ').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
-}
 
 /**
  * 绘制界面，消息按终端列宽折行并只显示当前视口。

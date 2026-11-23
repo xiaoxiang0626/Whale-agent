@@ -1,6 +1,7 @@
 /** 工作区内的受限路径与文本读取；不提供操作系统级沙箱。 */
-import { lstat, open, realpath, readdir } from 'node:fs/promises';
-import { join, relative, resolve, sep } from 'node:path';
+import { lstat, open, realpath, readdir, rename, link, unlink } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Stats } from 'node:fs';
 import ignore from 'ignore';
 import type { Ignore } from 'ignore';
@@ -21,6 +22,24 @@ function protectedPart(part: string): boolean {
   const name = part.toLowerCase();
   return protectedNames.has(name) || (name.startsWith('.env') && name !== '.env.example')
     || /\.(pem|key|pfx|p12)$/.test(name) || /^id_(rsa|dsa|ecdsa|ed25519)(\.|$)/.test(name);
+}
+
+function textFrom(buffer: Buffer): string {
+  let text: string;
+  try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buffer); } catch (error) {
+    if (error instanceof TypeError) { throw new FileToolError('NOT_TEXT', '文件不是有效 UTF-8 文本。'); }
+    throw error;
+  }
+  if (text.includes('\0')) { throw new FileToolError('NOT_TEXT', '文件包含二进制数据。'); }
+  return text;
+}
+
+/** 文件内容与版本，用于预览后检查是否仍为同一版本。 */
+export interface FileSnapshot {
+  readonly path: string;
+  readonly content: string;
+  readonly sha256: string | null;
+  readonly mode: number;
 }
 
 async function readBounded(path: string, stat: Stats, limit: number, signal: AbortSignal): Promise<Buffer> {
@@ -73,39 +92,95 @@ export class Workspace {
     return ignore().add((await readBounded(file, stat, 65536, signal)).toString('utf8'));
   }
 
-  /** @param path 工作区相对路径。 @param signal 取消信号。 @returns 已校验的真实路径与文件属性。 */
-  async existing(path: string, signal: AbortSignal): Promise<{ path: string; relativePath: string; stat: Stats }> {
+  private async target(path: string, allowMissing: boolean, signal: AbortSignal): Promise<{ path: string; relativePath: string; stat: Stats | undefined }> {
     signal.throwIfAborted();
     if (path.length > 4096 || /^[\\/]/.test(path) || /[:<>"|?*\u0000-\u001f]/.test(path)) { throw denied(); }
     const parts = path.replace(/\\/g, '/').split('/').filter(part => part.length > 0 && part !== '.');
     if (parts.some(part => part === '..' || part.endsWith('.') || part.endsWith(' ') || protectedPart(part))) { throw denied(); }
     let current = this.root;
-    let stat = await lstat(current);
+    let stat: Stats | undefined = await lstat(current);
     if (stat.isSymbolicLink()) { throw denied(); }
     const policies: { depth: number; matcher: Ignore }[] = [];
     for (let index = 0; index < parts.length; index++) {
       const policy = await this.rules(current, signal);
       if (policy !== undefined) { policies.push({ depth: index, matcher: policy }); }
       current = join(current, parts[index] ?? '');
-      stat = await lstat(current);
-      if (stat.isSymbolicLink()) { throw denied(); }
+      try { stat = await lstat(current); } catch (error) {
+        if (allowMissing && index === parts.length - 1 && error instanceof Error && 'code' in error && error.code === 'ENOENT') { stat = undefined; }
+        else { throw error; }
+      }
+      if (stat?.isSymbolicLink()) { throw denied(); }
       let ignored = false;
       for (const { depth, matcher } of policies) {
-        const result = matcher.test(parts.slice(depth, index + 1).join('/') + (stat.isDirectory() ? '/' : ''));
+        const result = matcher.test(parts.slice(depth, index + 1).join('/') + (stat?.isDirectory() ? '/' : ''));
         if (result.ignored) { ignored = true; }
         if (result.unignored) { ignored = false; }
       }
       if (ignored) { throw denied(); }
     }
-    const actual = await realpath(current);
+    const actual = stat === undefined ? join(await realpath(dirname(current)), basename(current)) : await realpath(current);
     const canonical = relative(this.root, actual);
     if (canonical === '..' || canonical.startsWith(`..${sep}`) || resolve(this.root, canonical) !== actual
       || canonical.split(sep).some(protectedPart)) { throw denied(); }
     signal.throwIfAborted();
     if (canonical.length > 0 && canonical.split(sep).join('/') !== parts.join('/')) {
-      return this.existing(canonical.split(sep).join('/'), signal);
+      return this.target(canonical.split(sep).join('/'), allowMissing, signal);
     }
     return { path: actual, relativePath: canonical.split(sep).join('/') || '.', stat };
+  }
+
+  /** @param path 工作区相对路径。 @param signal 取消信号。 @returns 已校验的真实路径与文件属性。 */
+  async existing(path: string, signal: AbortSignal): Promise<{ path: string; relativePath: string; stat: Stats }> {
+    const target = await this.target(path, false, signal);
+    if (target.stat === undefined) { throw new FileToolError('NOT_FOUND', '文件或目录不存在。'); }
+    return { ...target, stat: target.stat };
+  }
+
+  /** @param path 相对文件路径。 @param signal 取消信号。 @param allowMissing 是否允许提出新文件。 @returns UTF-8 全文、版本摘要和权限。 */
+  async snapshot(path: string, signal: AbortSignal, allowMissing = false): Promise<FileSnapshot> {
+    const target = await this.target(path, allowMissing, signal);
+    if (target.stat === undefined) { return { path: target.relativePath, content: '', sha256: null, mode: 0o600 }; }
+    if (!target.stat.isFile()) { throw new FileToolError('NOT_FILE', '该路径不是普通文件。'); }
+    const buffer = await readBounded(target.path, target.stat, maxFileBytes, signal);
+    return { path: target.relativePath, content: textFrom(buffer), sha256: createHash('sha256').update(buffer).digest('hex'), mode: target.stat.mode & 0o777 };
+  }
+
+  /**
+   * 将已确认的内容写入同目录临时文件后替换；新文件使用不覆盖已有文件的创建操作。
+   * @param expected 用户预览时的版本。 @param content 已预览的完整新内容。 @param signal 取消信号。
+   * @returns 应用后的内容摘要；提交阶段报错时以 WRITE_UNCERTAIN 报告未知结果。
+   */
+  async apply(expected: FileSnapshot, content: string, signal: AbortSignal): Promise<string> {
+    const initial = await this.snapshot(expected.path, signal, true);
+    if (initial.sha256 !== expected.sha256 || initial.mode !== expected.mode) { throw new FileToolError('FILE_CHANGED', '文件已在预览之后变化，请重新读取并提出修改。'); }
+    const target = await this.target(expected.path, true, signal);
+    const temporary = join(dirname(target.path), `.coding-agent-${randomUUID()}.tmp`);
+    let created = false;
+    let committing = false;
+    try {
+      const handle = await open(temporary, 'wx', expected.mode);
+      created = true;
+      try { await handle.writeFile(content, 'utf8'); await handle.chmod(expected.mode); await handle.sync(); }
+      finally { await handle.close(); }
+      signal.throwIfAborted();
+      const current = await this.snapshot(expected.path, signal, true);
+      if (current.sha256 !== expected.sha256 || current.mode !== expected.mode) { throw new FileToolError('FILE_CHANGED', '文件已在预览之后变化，请重新提出修改。'); }
+      committing = true;
+      if (expected.sha256 === null) { await link(temporary, target.path); }
+      else { await rename(temporary, target.path); created = false; }
+      return createHash('sha256').update(content).digest('hex');
+    } catch (error) {
+      if (committing) { throw new FileToolError('WRITE_UNCERTAIN', '写入结果未知；请检查实际文件后重新提出修改，不要直接重试。'); }
+      throw error;
+    } finally {
+      if (created) {
+        try { await unlink(temporary); } catch (error) {
+          if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+            throw new FileToolError(committing ? 'WRITE_UNCERTAIN' : 'CLEANUP_FAILED', '无法清理写入临时文件；请检查实际文件和目录后再继续。');
+          }
+        }
+      }
+    }
   }
 
   /** @param path 相对目录。 @param offset 首项偏移。 @param limit 返回数量。 @param signal 取消信号。 @returns 文件列表与下一页偏移。 */
@@ -134,24 +209,19 @@ export class Workspace {
     const target = await this.existing(path, signal);
     if (!target.stat.isFile()) { throw new FileToolError('NOT_FILE', '该路径不是普通文件。'); }
     const buffer = await readBounded(target.path, target.stat, maxFileBytes, signal);
-    let text: string;
-    try { text = new TextDecoder('utf-8', { fatal: true }).decode(buffer); } catch (error) {
-      if (error instanceof TypeError) { throw new FileToolError('NOT_TEXT', '文件不是有效 UTF-8 文本。'); }
-      throw error;
-    }
-    if (text.includes('\0')) { throw new FileToolError('NOT_TEXT', '文件包含二进制数据。'); }
-    const lines = text.split(/\r?\n/);
-    if (lines.at(-1) === '') { lines.pop(); }
+    const text = textFrom(buffer);
+    const lines = text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
     const selected: string[] = [];
     let size = 0;
     for (const line of lines.slice(startLine - 1, startLine - 1 + maxLines)) {
       if (line.length > 20000) { throw new FileToolError('LINE_TOO_LONG', '单行文本超过 20000 字符上限。'); }
-      const length = line.length + (selected.length > 0 ? 1 : 0);
+      const length = line.length;
       if (size + length > 20000) { break; }
       selected.push(line); size += length;
     }
     const endLine = Math.min(lines.length, startLine + selected.length - 1);
     return { path: target.relativePath, startLine, endLine, totalLines: lines.length,
-      content: selected.join('\n'), nextLine: endLine < lines.length ? endLine + 1 : null };
+      content: selected.join(''), nextLine: endLine < lines.length ? endLine + 1 : null,
+      sha256: createHash('sha256').update(buffer).digest('hex'), hasBom: text.startsWith('\ufeff') };
   }
 }

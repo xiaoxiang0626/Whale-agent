@@ -28,7 +28,7 @@ test('工具读取真实文本、分页目录并应用根目录与嵌套忽略�
   const listed = await call(tools, 'list_files', { path: 'src' });
   assert.deepEqual(JSON.parse(listed.content).entries.map((item: { path: string }) => item.path), ['src/.gitignore', 'src/visible.txt']);
   const text = JSON.parse((await call(tools, 'read_file', { path: 'src/visible.txt', start_line: 2, max_lines: 1 })).content);
-  assert.equal(text.content, '第二行'); assert.equal(text.nextLine, 3); assert.equal(text.totalLines, 3);
+  assert.equal(text.content, '第二行\n'); assert.equal(text.nextLine, 3); assert.equal(text.totalLines, 3);
   assert.equal((await call(tools, 'read_file', { path: '.env.example' })).ok, true);
 });
 

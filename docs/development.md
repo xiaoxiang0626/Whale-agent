@@ -51,7 +51,8 @@ my-coding-agent "解释这个项目"
 | 无 | `CODING_AGENT_MAX_RESPONSE_BYTES` | `1048576` | 真实接口响应正文的字节上限 |
 | `--workspace` | `CODING_AGENT_WORKSPACE` | 当前目录 | 只读工具可访问的目录 |
 | `--max-steps` | `CODING_AGENT_MAX_STEPS` | `12` | 每轮 1–100 次模型请求上限 |
-| `--no-tools` | 无 | 不设置时提供只读工具 | 关闭模型工具，仅进行文本对话 |
+| `--read-only` | 无 | 交互默认可提案 | 交互也仅提供只读工具 |
+| `--no-tools` | 无 | 单次只读、交互可提案 | 关闭模型工具，仅进行文本对话 |
 
 超时和响应字节上限均须为 1 至 2147483647 的整数。基础地址只接受 HTTP 或 HTTPS，不能携带凭据、查询参数或片段。
 
@@ -97,6 +98,8 @@ CLI 不打印任意异常的完整内容。模拟调用立即完成；HTTP 适�
 真实伪终端检查使用开发依赖 `node-pty`、`@xterm/headless` 与其 Unicode 11 插件，直接启动 Node，不依赖 PowerShell 或其他 shell。仓库使用 node-pty 自带预编译模块，`pnpm-workspace.yaml` 显式禁止它的安装脚本；不支持的系统或架构会报错，需先解决安装问题。该检查验证构建产物、备用屏幕恢复和 130×34、80×24、40×12 缩放，不计入单元测试用例数。
 
 只有显式运行 `pnpm test:tui:pty --live` 才加载本地 `.env` 并发起一次真实文本请求，会消耗接口额度。验证结果只输出成功状态，不保存真实屏幕内容或密钥。`--capture` 仅在离线模式将模拟屏幕单元格写入 `.git/tui-captures.json`，供生成预览使用。
+
+`pnpm test:editing:live` 使用真实模型读取临时文件、提出修改，显式确认后检查实际写入；不修改真实项目文件。
 
 `pnpm test:agent:live` 为独立的真实工具检查：读取临时夹具，验证工具结果回传，并比较有无工具定义的首条消息 prompt token。它显式使用本地 `.env`，不读取真实项目代码，只输出计数和通过状态。
 

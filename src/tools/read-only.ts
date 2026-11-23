@@ -11,7 +11,7 @@ const definitions: readonly ToolDefinition[] = [
       limit: { type: 'integer', minimum: 1, maximum: 200, default: 100, description: '本次最多返回的条目数。' },
     }, required: ['path'], additionalProperties: false,
   } },
-  { name: 'read_file', description: '读取 UTF-8 文本，返回行区间、总行数与下一页起始行。', parameters: {
+  { name: 'read_file', description: '读取 UTF-8 文本并保留原换行，返回行区间、版本摘要与下一页起始行。', parameters: {
     type: 'object', properties: {
       path: { type: 'string', description: '工作区相对文件路径。' },
       start_line: { type: 'integer', minimum: 1, default: 1, description: '起始行号，一起算。' },

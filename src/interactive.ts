@@ -3,6 +3,7 @@ import type { Writable } from 'node:stream';
 import type { Conversation } from './conversation.ts';
 import { formatError } from './errors.ts';
 import { renderDeepSeekLogo } from './mascot.ts';
+import { displayText } from './display.ts';
 
 /** 交互输出流，可提供终端尺寸和颜色能力。 */
 export interface InteractiveOutput extends Writable {
@@ -13,7 +14,7 @@ export interface InteractiveOutput extends Writable {
   getColorDepth?(): number;
 }
 
-const commands = '/help 显示帮助 · /clear 清空上下文 · /exit 退出\n请求期间 Ctrl+C 取消本次请求；空闲时 Ctrl+C 退出。';
+const commands = '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /reject 编号 拒绝\n请求期间 Ctrl+C 取消本次请求；空闲时 Ctrl+C 退出。';
 
 /**
  * 连续处理终端输入，按顺序发送请求；结束时关闭传入的 readline 接口。
@@ -37,7 +38,7 @@ export async function runInteractive(
   terminal.on('SIGINT', interrupt);
   terminal.once('close', closed);
   const unsubscribe = conversation.subscribe(event => {
-    if (event.type === 'tool') { output.write(`[工具] ${event.name}：${event.summary}\n`); }
+    if (event.type === 'tool') { output.write(displayText(`[工具] ${event.name}：${event.summary}\n${event.preview === undefined ? '' : `${event.preview}\n`}`)); }
   });
   terminal.setPrompt('你> ');
   output.write(renderDeepSeekLogo({
@@ -53,15 +54,15 @@ export async function runInteractive(
       if (input === '/exit') { break; }
       if (input === '/help') { output.write(`${commands}\n`); }
       else if (input === '/clear') { conversation.clear(); output.write('已清空上下文。\n'); }
-      else if (input.startsWith('/')) { errors.write('未知命令，请输入 /help 查看帮助。\n'); }
+      else if (input.startsWith('/') && !/^\/(apply|reject) [a-zA-Z0-9-]+$/.test(input)) { errors.write('未知命令，请输入 /help 查看帮助。\n'); }
       else if (input.length > 0) {
         active = new AbortController();
         output.write('正在思考…\n');
         try {
           const response = await conversation.send(input, active.signal);
-          output.write(`助手> ${response.text}\n\n`);
+          output.write(`助手> ${displayText(response.text)}\n\n`);
         } catch (error) {
-          if (active.signal.aborted) { output.write('已取消本次请求，上下文保持不变。\n'); }
+          if (active.signal.aborted) { output.write('已取消本次请求；已完成的确认操作不回滚。\n'); }
           else { errors.write(`${formatError(error)}\n`); }
         } finally {
           active = undefined;
