@@ -1,4 +1,4 @@
-import { AppError } from './errors.ts';
+import { Conversation } from './conversation.ts';
 import type { ModelProvider, ModelResponse } from './providers/types.ts';
 
 /** 一次文本任务的输入。 */
@@ -19,15 +19,5 @@ export async function runTask(
   input: TaskInput,
   signal: AbortSignal,
 ): Promise<ModelResponse> {
-  signal.throwIfAborted();
-  const prompt = input.prompt.trim();
-  if (prompt.length === 0) {
-    throw new AppError('EMPTY_PROMPT', '请输入非空任务。');
-  }
-  const response = await provider.complete({
-    model: input.model,
-    messages: [{ role: 'user', content: prompt }],
-  }, signal);
-  signal.throwIfAborted();
-  return response;
+  return new Conversation(provider, input.model).send(input.prompt, signal);
 }

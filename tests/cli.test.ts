@@ -10,11 +10,12 @@ function cli(...args: string[]) {
   return cliWithEnv(args, { ...process.env, CODING_AGENT_PROVIDER: 'mock', CODING_AGENT_MODEL: 'mock-v1' });
 }
 
-function cliWithEnv(args: string[], env: NodeJS.ProcessEnv) {
+function cliWithEnv(args: string[], env: NodeJS.ProcessEnv, input?: string) {
   return spawnSync(process.execPath, [fileURLToPath(new URL('../src/cli.ts', import.meta.url)), ...args], {
     encoding: 'utf8',
     timeout: 10_000,
     env,
+    ...(input === undefined ? {} : { input }),
   });
 }
 
@@ -56,11 +57,24 @@ test('显式环境文件可以加载，CLI 和已有环境变量优先，读取�
 });
 
 test('CLI 为无效参数、空任务和未支持的 provider 返回非零状态', () => {
-  for (const args of [[' '], ['--unknown'], ['--model'], ['--provider', 'mock'], ['--provider', 'real-api', 'task']]) {
+  for (const args of [[' '], ['--unknown'], ['--model'], ['--provider', 'mock'], ['--provider', 'real-api', 'task'], ['-i', 'task']]) {
     const result = cli(...args);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1);
     assert.equal(result.stdout, '');
     assert.match(result.stderr, /\[(EMPTY_PROMPT|INVALID_ARGUMENTS|INVALID_CONFIG)\]/);
   }
+});
+
+test('显式交互模式处理多条输入并退出，非交互空输入仍显示帮助', () => {
+  const result = cliWithEnv(['--interactive'], {
+    ...process.env, CODING_AGENT_PROVIDER: 'mock', CODING_AGENT_MODEL: 'mock-v1',
+  }, '第一条\n第二条\n/exit\n不会发送\n');
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, '');
+  assert.match(result.stdout, /交互会话/);
+  assert.match(result.stdout, /已收到任务：第一条/);
+  assert.match(result.stdout, /已收到任务：第二条/);
+  assert.doesNotMatch(result.stdout, /已收到任务：不会发送/);
 });

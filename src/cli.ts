@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-/** 单次任务 CLI；业务逻辑通过 runTask 调用注入的 provider。 */
+/** 文本任务与交互会话 CLI；模型请求由会话和适配器处理。 */
 import { parseArgs } from 'node:util';
-import { AppError } from './errors.ts';
+import { createInterface } from 'node:readline';
+import { AppError, formatError } from './errors.ts';
+import { Conversation } from './conversation.ts';
+import { runInteractive } from './interactive.ts';
 import { resolveConfig } from './config.ts';
 import { createProvider } from './providers/index.ts';
 import { runTask } from './task.ts';
@@ -9,15 +12,18 @@ import { runTask } from './task.ts';
 const help = `my-coding-agent — 编码 Agent 学习项目
 
 用法：my-coding-agent [选项] "你的任务"
+交互：my-coding-agent --env .env
 
   --help, -h      显示帮助
   --provider      模型适配器（mock 或 openai-compatible）
   --model         模型名称
   --base-url      模型 API 的基础地址
   --env           显式加载本地环境文件
+  --interactive, -i  显式进入交互会话，也可接受管道中的逐行输入
 
 示例：my-coding-agent "解释这个项目"
 源码开发：pnpm dev "解释这个项目"
+交互命令：/help、/clear、/exit
 
 默认使用 mock 离线演示；openai-compatible 可连接自己的模型 API。
 当前不会读取代码、修改文件或执行命令。`;
@@ -31,6 +37,7 @@ function parseInput() {
         model: { type: 'string' },
         'base-url': { type: 'string' },
         env: { type: 'string' },
+        interactive: { type: 'boolean', short: 'i' },
       },
       allowPositionals: true,
       strict: true,
@@ -46,9 +53,13 @@ function parseInput() {
 
 async function main(): Promise<void> {
   const { values, positionals } = parseInput();
-  if (values.help === true || process.argv.length === 2) {
+  const interactive = values.interactive === true || (positionals.length === 0 && process.stdin.isTTY === true);
+  if (values.help === true || (process.argv.length === 2 && !interactive)) {
     process.stdout.write(`${help}\n`);
     return;
+  }
+  if (values.interactive === true && positionals.length > 0) {
+    throw new AppError('INVALID_ARGUMENTS', '交互模式请逐行输入任务，不要同时提供位置参数。');
   }
   if (values.env !== undefined) {
     try { process.loadEnvFile(values.env); } catch (error) {
@@ -64,11 +75,27 @@ async function main(): Promise<void> {
     ...(values.model === undefined ? {} : { model: values.model }),
     ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }),
   });
+  const provider = createProvider(config);
+  if (interactive) {
+    const terminal = createInterface({
+      input: process.stdin, output: process.stdout,
+      terminal: process.stdin.isTTY === true && process.stdout.isTTY === true,
+      crlfDelay: Infinity,
+    });
+    const interrupt = () => { terminal.emit('SIGINT'); };
+    process.on('SIGINT', interrupt);
+    try {
+      await runInteractive(new Conversation(provider, config.model), terminal, process.stdout, process.stderr);
+    } finally {
+      process.off('SIGINT', interrupt);
+    }
+    return;
+  }
   const controller = new AbortController();
   const cancel = () => controller.abort();
   process.once('SIGINT', cancel);
   try {
-    const response = await runTask(createProvider(config), {
+    const response = await runTask(provider, {
       model: config.model,
       prompt: positionals.join(' '),
     }, controller.signal);
@@ -88,8 +115,6 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  process.stderr.write(error instanceof AppError
-    ? `[${error.code}] ${error.message}\n`
-    : '任务失败，未获得有效响应。\n');
+  process.stderr.write(`${formatError(error)}\n`);
   process.exitCode = 1;
 }

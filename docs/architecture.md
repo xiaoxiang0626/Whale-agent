@@ -6,9 +6,9 @@
 
 1. `my-coding-agent` 启动构建后的 `dist/cli.js`，对应源码为 `src/cli.ts`；入口解析任务文本、`--provider` 和 `--model`，无参数时显示帮助。
 2. 显式传入 `--env` 时加载环境文件，`resolveConfig()` 合并 CLI 参数、环境变量和默认值，拒绝无效配置。
-3. `runTask()` 检查取消状态和空输入，把任务转换为一条 `user` 消息。
+3. 单次任务通过 `runTask()` 创建一个会话；交互模式复用同一个 `Conversation`，逐行接收输入。
 4. 注入的 `ModelProvider.complete()` 接收模型名、消息列表和取消信号。
-5. CLI 输出返回文本；调用失败时输出错误并设置非零退出码。
+5. 成功后把用户输入与助手回复成对加入会话历史，再输出文本；单次调用失败时设置非零退出码，交互失败时保留原上下文并继续等待输入。
 
 CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`。默认模拟响应只回显输入；后者按本地配置发送一次文本请求。
 
@@ -19,6 +19,8 @@ CLI 通过适配器工厂选择 `mock` 或 `openai-compatible`。默认模拟响
 | [cli.ts](../src/cli.ts) | 参数、终端输出和退出状态；将 Ctrl+C 转换为取消信号 |
 | [config.ts](../src/config.ts) | 一次性解析启动配置 |
 | [task.ts](../src/task.ts) | 把用户任务转换为模型请求，调用注入的适配器 |
+| [conversation.ts](../src/conversation.ts) | 管理成功问答历史、串行调用与清空 |
+| [interactive.ts](../src/interactive.ts) | 逐行输入、会话命令、取消与终端清理 |
 | [providers/types.ts](../src/providers/types.ts) | 定义协议无关的消息、请求、响应和适配器接口 |
 | [providers/mock.ts](../src/providers/mock.ts) | 无网络、无凭据的演示适配器 |
 | [providers/index.ts](../src/providers/index.ts) | 按已解析配置创建适配器 |
@@ -35,7 +37,7 @@ HTTP 请求超时覆盖响应正文读取，响应字节上限限制内存使用
 
 适配器收到 `AbortSignal` 后负责终止自身进行中的工作。`runTask()` 在调用前和调用返回后都检查取消状态，因此取消后返回的结果不会被发布。适配器失败会向调用方传播，任务逻辑不把错误转换为成功响应。
 
-消息仅在本次进程内使用，没有持久化会话或历史恢复。
+交互模式将已经成功完成的问答随新输入一起发送。同一会话拒绝并发发送或在请求期间清空；失败、取消和迟到结果不改变历史。消息仅在本次进程内使用，没有持久化会话或历史恢复。
 
 ## 从 DeepSeek Harness 参考了什么
 
