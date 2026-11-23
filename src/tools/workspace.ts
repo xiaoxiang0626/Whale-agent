@@ -8,7 +8,7 @@ import type { Ignore } from 'ignore';
 import { AppError } from '../errors.ts';
 
 const maxFileBytes = 262144;
-const protectedNames = new Set(['.git', '.local-assets', '.ssh', '.aws', '.azure', '.npmrc', '.pypirc', '.netrc', '.git-credentials', 'node_modules', 'dist']);
+const protectedNames = new Set(['.git', '.coding-agent', '.local-assets', '.ssh', '.aws', '.azure', '.npmrc', '.pypirc', '.netrc', '.git-credentials', 'node_modules', 'dist']);
 
 /** 可传回模型的固定文件工具失败。 */
 export class FileToolError extends Error {

@@ -7,6 +7,7 @@ export interface ToolResult {
   readonly summary: string;
   readonly preview?: string;
   readonly continueModel?: boolean;
+  readonly uncertain?: boolean;
 }
 
 /** 当前会话已授予的工具能力。 */
@@ -18,11 +19,11 @@ export interface ToolSet {
   execute(call: ToolCall, signal: AbortSignal): Promise<ToolResult>;
   /** @param command 用户确认或拒绝命令。 @param id 预览编号。 @param signal 取消信号。 @returns 操作的实际结果。 */
   action?(command: 'apply' | 'reject' | 'run', id: string, signal: AbortSignal): Promise<ToolResult>;
-  /** 丢弃尚未确认的修改。 */
+  /** 丢弃尚未确认的提案。 */
   clearPending?(): void;
 }
 
-/** 执行进度；preview 为用户明确需要审阅的 diff，其他字段不包含文件正文或模型推理。 */
+/** 执行进度；preview 包含供用户审阅的修改、命令或实际输出，不包含模型推理。 */
 export type AgentEvent =
   | { readonly type: 'model'; readonly step: number }
   | { readonly type: 'tool'; readonly name: string; readonly ok: boolean; readonly summary: string; readonly preview?: string };

@@ -1,11 +1,17 @@
 import { AppError } from './errors.ts';
 import type { ModelMessage, ModelProvider, ModelResponse } from './providers/types.ts';
 import type { AgentEvent, ToolSet } from './tools/types.ts';
+import type { SessionJournal } from './session.ts';
+import { selectContext } from './context.ts';
 
 /** 一次会话运行所需的已授权能力与循环上限。 */
 export interface AgentOptions {
   readonly tools?: ToolSet;
   readonly maxSteps?: number;
+  /** 请求 JSON 的 UTF-16 字符预算，不是 token 数。 */
+  readonly maxContextChars?: number;
+  /** 可选刷盘日志，由创建者负责关闭。 */
+  readonly journal?: SessionJournal;
 }
 
 /**
@@ -21,10 +27,16 @@ export async function runAgent(provider: ModelProvider, model: string, messages:
   let calls = 0;
   for (let step = 1; step <= (options.maxSteps ?? 12); step++) {
     signal.throwIfAborted(); emit({ type: 'model', step });
-    const response = await provider.complete({ model,
+    const fullRequest = { model,
       messages: [...(options.tools === undefined ? [] : [{ role: 'system' as const, content: options.tools.context }]), ...messages, ...delta],
       ...(options.tools === undefined ? {} : { tools: options.tools.definitions }),
-    }, signal);
+    };
+    const currentStart = Math.max(0, messages.findLastIndex(message => message.role === 'user')) + (options.tools === undefined ? 0 : 1);
+    const selected = selectContext(fullRequest, currentStart, options.maxContextChars ?? 48000);
+    if (selected.dropped > 0) { emit({ type: 'tool', name: '上下文', ok: true, summary: `本次请求省略最早 ${selected.dropped} 条消息，完整历史仍保留` }); }
+    options.journal?.append({ kind: 'request', data: selected.request });
+    const response = await provider.complete(selected.request, signal);
+    options.journal?.append({ kind: 'response', data: response });
     signal.throwIfAborted();
     delta.push({ role: 'assistant', content: response.text,
       ...(response.reasoningContent === undefined ? {} : { reasoningContent: response.reasoningContent }),

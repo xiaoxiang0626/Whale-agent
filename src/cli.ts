@@ -12,6 +12,8 @@ import { resolveAgentConfig } from './agent-config.ts';
 import { createReadOnlyTools } from './tools/read-only.ts';
 import { createCommandTools } from './tools/commands.ts';
 import { displayText } from './display.ts';
+import { SessionJournal, sessionPath } from './session.ts';
+import { Workspace } from './tools/workspace.ts';
 
 const help = `my-coding-agent — 编码 Agent 学习项目
 
@@ -27,8 +29,12 @@ const help = `my-coding-agent — 编码 Agent 学习项目
   --plain         使用逐行纯文本会话，不进入终端界面
   --workspace     可读取的工作区目录（默认当前目录）
   --max-steps     每轮模型请求上限（默认 12，最多 100）
+  --context-chars  请求 JSON 字符预算（默认 48000，范围 4000–1000000）
   --no-tools      仅文本对话，不向模型提供文件工具
   --read-only     交互模式也只提供只读工具
+  --session       新建命名会话日志，存于工作区 .coding-agent/sessions/
+  --resume        恢复命名会话；须使用相同工作区、模型和工具模式
+  --repair-session  配合 --resume，备份后移除未写完的日志末行
 
 示例：my-coding-agent "解释这个项目"
 源码开发：pnpm dev "解释这个项目"
@@ -52,6 +58,10 @@ function parseInput() {
         'max-steps': { type: 'string' },
         'no-tools': { type: 'boolean' },
         'read-only': { type: 'boolean' },
+        'context-chars': { type: 'string' },
+        session: { type: 'string' },
+        resume: { type: 'string' },
+        'repair-session': { type: 'boolean' },
       },
       allowPositionals: true,
       strict: true,
@@ -75,6 +85,10 @@ async function main(): Promise<void> {
   if (values.interactive === true && positionals.length > 0) {
     throw new AppError('INVALID_ARGUMENTS', '交互模式请逐行输入任务，不要同时提供位置参数。');
   }
+  if ((values.session !== undefined && values.resume !== undefined) || (values['repair-session'] === true && values.resume === undefined)) {
+    throw new AppError('INVALID_ARGUMENTS', '--session 与 --resume 不能同时使用；--repair-session 只能配合 --resume。');
+  }
+  if (!interactive && positionals.join(' ').trim().length === 0) { throw new AppError('EMPTY_PROMPT', '请输入非空任务。'); }
   if (values.env !== undefined) {
     try { process.loadEnvFile(values.env); } catch (error) {
       // 环境文件读取或解析失败时不回显文件内容。
@@ -93,52 +107,62 @@ async function main(): Promise<void> {
   const agentConfig = resolveAgentConfig(process.env, {
     ...(values.workspace === undefined ? {} : { workspace: values.workspace }),
     ...(values['max-steps'] === undefined ? {} : { maxSteps: values['max-steps'] }),
+    ...(values['context-chars'] === undefined ? {} : { maxContextChars: values['context-chars'] }),
   }, process.cwd());
-  const options = { maxSteps: agentConfig.maxSteps,
-    ...(values['no-tools'] === true ? {} : { tools: await (interactive && values['read-only'] !== true
-      ? createCommandTools(agentConfig.workspace, config.provider === 'openai-compatible' ? [config.apiKey] : []) : createReadOnlyTools(agentConfig.workspace)) }),
-  };
-  if (interactive) {
-    if (values.plain !== true && process.stdin.isTTY === true && process.stdout.isTTY === true) {
-      const { runTui } = await import('./tui.ts');
-      await runTui(new Conversation(provider, config.model, options));
-      return;
-    }
-    const terminal = createInterface({
-      input: process.stdin, output: process.stdout,
-      terminal: process.stdin.isTTY === true && process.stdout.isTTY === true,
-      crlfDelay: Infinity,
-    });
-    const interrupt = () => { terminal.emit('SIGINT'); };
-    process.on('SIGINT', interrupt);
-    try {
-      await runInteractive(new Conversation(provider, config.model, options), terminal, process.stdout, process.stderr);
-    } finally {
-      process.off('SIGINT', interrupt);
-    }
-    return;
-  }
-  const controller = new AbortController();
-  const cancel = () => controller.abort();
-  process.once('SIGINT', cancel);
+  const mode = values['no-tools'] === true ? 'none' : interactive && values['read-only'] !== true ? 'confirmed' : 'read-only';
+  const name = values.session ?? values.resume;
+  const workspace = name === undefined ? undefined : await Workspace.create(agentConfig.workspace);
+  const journal = name === undefined || workspace === undefined ? undefined : await SessionJournal.open(await sessionPath(workspace.root, name),
+    { workspace: workspace.root, provider: config.provider, model: config.model, mode }, values.resume !== undefined, values['repair-session'] === true,
+    config.provider === 'openai-compatible' ? [config.apiKey] : []);
   try {
-    const response = await runTask(provider, {
-      model: config.model,
-      prompt: positionals.join(' '),
-      options,
-      onEvent: event => { if (event.type === 'tool') { process.stderr.write(`[工具] ${event.name}：${event.summary}\n`); } },
-    }, controller.signal);
-    process.stdout.write(`${displayText(response.text)}\n`);
-  } catch (error) {
-    if (controller.signal.aborted) {
-      process.stderr.write('任务已取消。\n');
-      process.exitCode = 130;
+    const options = { maxSteps: agentConfig.maxSteps, maxContextChars: agentConfig.maxContextChars,
+      ...(journal === undefined ? {} : { journal }),
+      ...(values['no-tools'] === true ? {} : { tools: await (interactive && values['read-only'] !== true
+        ? createCommandTools(agentConfig.workspace, config.provider === 'openai-compatible' ? [config.apiKey] : []) : createReadOnlyTools(agentConfig.workspace)) }),
+    };
+    if (interactive) {
+      if (values.plain !== true && process.stdin.isTTY === true && process.stdout.isTTY === true) {
+        const { runTui } = await import('./tui.ts');
+        await runTui(new Conversation(provider, config.model, options));
+        return;
+      }
+      const terminal = createInterface({
+        input: process.stdin, output: process.stdout,
+        terminal: process.stdin.isTTY === true && process.stdout.isTTY === true,
+        crlfDelay: Infinity,
+      });
+      const interrupt = () => { terminal.emit('SIGINT'); };
+      process.on('SIGINT', interrupt);
+      try {
+        await runInteractive(new Conversation(provider, config.model, options), terminal, process.stdout, process.stderr);
+      } finally {
+        process.off('SIGINT', interrupt);
+      }
       return;
     }
-    throw error;
-  } finally {
-    process.off('SIGINT', cancel);
-  }
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    process.once('SIGINT', cancel);
+    try {
+      const response = await runTask(provider, {
+        model: config.model,
+        prompt: positionals.join(' '),
+        options,
+        onEvent: event => { if (event.type === 'tool') { process.stderr.write(`[工具] ${event.name}：${event.summary}\n`); } },
+      }, controller.signal);
+      process.stdout.write(`${displayText(response.text)}\n`);
+    } catch (error) {
+      if (controller.signal.aborted) {
+        process.stderr.write('任务已取消。\n');
+        process.exitCode = 130;
+        return;
+      }
+      throw error;
+    } finally {
+      process.off('SIGINT', cancel);
+    }
+  } finally { await journal?.close(); }
 }
 
 try {

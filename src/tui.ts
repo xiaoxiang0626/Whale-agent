@@ -19,7 +19,11 @@ export interface TerminalAppProps {
 export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
-  const [entries, setEntries] = useState<DisplayEntry[]>([]);
+  const [entries, setEntries] = useState<DisplayEntry[]>(() => [
+    ...(conversation.sessionPath === undefined ? [] : [{ role: 'notice' as const, text: `会话日志：${conversation.sessionPath}` }]),
+    ...conversation.messages.flatMap((message): DisplayEntry[] => message.role === 'user' || (message.role === 'assistant' && message.content.length > 0)
+      ? [{ role: message.role, text: message.content }] : message.role === 'system' ? [{ role: 'notice', text: message.content }] : []),
+  ]);
   const [query, setQuery] = useState('');
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState('就绪');
@@ -50,7 +54,9 @@ export function TerminalApp({ conversation }: TerminalAppProps): ReactElement {
     setQuery('');
     if (text === '/exit') { exit(); return; }
     if (text === '/clear') {
-      conversation.clear(); setEntries([]); setStatus('上下文已清空'); return;
+      try { conversation.clear(); setEntries([]); setStatus('上下文已清空'); }
+      catch (error) { setEntries(current => [...current, { role: 'error', text: formatError(error) }]); }
+      return;
     }
     if (text === '/help') {
       setEntries(current => [...current, { role: 'notice', text: '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /run 编号 执行 · /reject 编号 拒绝。PgUp/PgDn 浏览消息，Ctrl+C 或 Esc 取消请求。' }]); return;
@@ -99,5 +105,5 @@ export async function runTui(conversation: Conversation): Promise<void> {
   const app = render(h(TerminalApp, { conversation }), {
     alternateScreen: true, interactive: true, exitOnCtrlC: false, patchConsole: false,
   });
-  try { await app.waitUntilExit(); } finally { app.cleanup(); }
+  try { await app.waitUntilExit(); } finally { app.cleanup(); await conversation.waitUntilIdle(); }
 }

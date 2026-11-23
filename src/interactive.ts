@@ -45,7 +45,7 @@ export async function runInteractive(
     columns: output.columns ?? 80, rows: output.rows ?? 30,
     colorDepth: output.isTTY === true && process.env['NO_COLOR'] === undefined ? (output.getColorDepth?.() ?? 1) : 1,
   }));
-  output.write(`my-coding-agent · 交互会话\n模型：${conversation.model} · 适配器：${conversation.providerId}\n${conversation.workspace === undefined ? '' : `工作区：${conversation.workspace}\n`}${commands}\n\n`);
+  output.write(displayText(`my-coding-agent · 交互会话\n模型：${conversation.model} · 适配器：${conversation.providerId}\n${conversation.workspace === undefined ? '' : `工作区：${conversation.workspace}\n`}${conversation.sessionPath === undefined ? '' : `会话日志：${conversation.sessionPath} · 已完成 ${conversation.turnCount} 轮\n`}${commands}\n\n`));
   terminal.prompt();
   try {
     for await (const line of terminal) {
@@ -53,7 +53,10 @@ export async function runInteractive(
       const input = line.trim();
       if (input === '/exit') { break; }
       if (input === '/help') { output.write(`${commands}\n`); }
-      else if (input === '/clear') { conversation.clear(); output.write('已清空上下文。\n'); }
+      else if (input === '/clear') {
+        try { conversation.clear(); output.write('已清空上下文。\n'); }
+        catch (error) { errors.write(`${formatError(error)}\n`); }
+      }
       else if (input.startsWith('/') && !/^\/(apply|reject|run) [a-zA-Z0-9-]+$/.test(input)) { errors.write('未知命令，请输入 /help 查看帮助。\n'); }
       else if (input.length > 0) {
         active = new AbortController();
