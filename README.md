@@ -2,7 +2,7 @@
 
 参考 DeepSeek Harness，逐个 PR 开发自己的命令行编码 Agent，并用中文文档解释每一步。
 
-当前提供全屏终端界面，模型可以列出、读取工作区文件，并通过工具循环分析代码。也可使用持续文本对话或单次任务。模型可选择离线模拟或自己的 OpenAI 兼容 API。交互模式支持[文件修改预览与确认](docs/editing.md)，执行命令属于[后续需求](docs/roadmap.md)。
+当前提供全屏终端界面，模型可以列出、读取工作区文件，并通过工具循环分析代码。也可使用持续文本对话或单次任务。模型可选择离线模拟或自己的 OpenAI 兼容 API。交互模式支持[文件修改预览与确认](docs/editing.md)，以及[命令执行与测试反馈](docs/commands.md)，均需用户逐项确认。
 
 ## 启动
 
@@ -61,6 +61,7 @@ my-coding-agent --env .env --interactive
 - [开发日志](docs/development-log.md)：开发问题、根因、解决方案和指标变化。
 - [只读 Agent](docs/agent-tools.md)：工作区、工具循环、权限与验证。
 - [文件修改与确认](docs/editing.md)：diff、版本检查、应用与拒绝。
+- [命令与测试反馈](docs/commands.md)：执行预览、超时、取消与实际结果。
 
 ## 分析代码
 

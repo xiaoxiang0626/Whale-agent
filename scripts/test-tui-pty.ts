@@ -97,6 +97,12 @@ try {
     await type('/apply edit-1'); child.write('\r');
     await waitFor(() => screen().includes('已应用 edit-1') && screen().includes('对话 · 4 轮'), 'confirmed write');
     assert.equal(await readFile(join(workspace, 'edited.txt'), 'utf8'), 'PTY_CONFIRMED\n');
+    const command = '演示命令 ' + JSON.stringify({ program: process.execPath, args: ['-e', "console.log('PTY_TEST_OK')"], cwd: '.', timeout_ms: 3000 });
+    await type(command, '"timeout_ms":3000}'); child.write('\r');
+    await waitFor(() => screen().includes('/run command-1') && screen().includes('PTY_TEST_OK'), 'command preview');
+    capture('command-130x34');
+    await type('/run command-1'); child.write('\r');
+    await waitFor(() => screen().includes('command-1：exited，退出码 0') && screen().includes('对话 · 6 轮'), 'command result');
     const draft = '中文🐳'.repeat(25) + '尾部';
     await type(draft, '尾部');
     await resize(80, 24);
@@ -108,7 +114,7 @@ try {
     child.write('\r');
     await waitFor(() => screen().includes('输入消息或 /help'), 'long draft sent');
     await resize(130, 34);
-    await waitFor(() => screen().includes('对话 · 5 轮'), 'draft preserved after resize');
+    await waitFor(() => screen().includes('对话 · 7 轮'), 'draft preserved after resize');
     const messages = Array.from({ length: terminal.rows }, (_, row) =>
       terminal.buffer.active.getLine(terminal.buffer.active.viewportY + row)?.translateToString(true, 0, terminal.cols - 34) ?? '').join('');
     assert.ok(messages.replace(/[\s│╭╮╰╯─]/g, '').includes(`已收到任务：${draft}`), 'Entire draft should survive resize');

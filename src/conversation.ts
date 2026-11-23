@@ -62,15 +62,18 @@ export class Conversation {
     const user: ModelMessage = { role: 'user', content: prompt };
     this.busy = true;
     try {
-      const action = /^\/(apply|reject) ([a-zA-Z0-9-]+)$/.exec(prompt);
+      const action = /^\/(apply|reject|run) ([a-zA-Z0-9-]+)$/.exec(prompt);
       if (action !== null) {
         const handler = this.options.tools?.action;
-        if (handler === undefined) { throw new AppError('TOOL_UNAVAILABLE', '当前模式不支持确认文件修改。'); }
-        const result = await handler(action[1] === 'apply' ? 'apply' : 'reject', action[2] ?? '', signal);
+        if (handler === undefined) { throw new AppError('TOOL_UNAVAILABLE', '当前模式不支持确认操作。'); }
+        const command = action[1] === 'apply' ? 'apply' : action[1] === 'run' ? 'run' : 'reject';
+        for (const listener of this.listeners) { listener({ type: 'tool', name: '用户确认', ok: true, summary: `正在处理 ${prompt}` }); }
+        const result = await handler(command, action[2] ?? '', signal);
         this.history.push(user, { role: 'system', content: `[已确认操作结果] ${result.content}` });
-        for (const listener of this.listeners) { listener({ type: 'tool', name: '用户确认', ok: result.ok, summary: result.summary }); }
+        for (const listener of this.listeners) { listener({ type: 'tool', name: '用户确认', ok: result.ok, summary: result.summary,
+          ...(result.preview === undefined ? {} : { preview: result.preview }) }); }
         signal.throwIfAborted();
-        if (!result.ok || action[1] === 'reject') { return { text: `[本地操作] ${result.summary}` }; }
+        if ((!result.ok && result.continueModel !== true) || command === 'reject') { return { text: `[本地操作] ${result.summary}` }; }
       }
       const prefix = action === null ? [...this.history, user] : this.history;
       const { response, delta } = await runAgent(this.provider, this.model, prefix, this.options,

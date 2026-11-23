@@ -14,7 +14,7 @@ export interface InteractiveOutput extends Writable {
   getColorDepth?(): number;
 }
 
-const commands = '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /reject 编号 拒绝\n请求期间 Ctrl+C 取消本次请求；空闲时 Ctrl+C 退出。';
+const commands = '/help 帮助 · /clear 清空 · /exit 退出 · /apply 编号 应用 · /run 编号 执行 · /reject 编号 拒绝\n请求期间 Ctrl+C 取消本次请求；空闲时 Ctrl+C 退出。';
 
 /**
  * 连续处理终端输入，按顺序发送请求；结束时关闭传入的 readline 接口。
@@ -54,7 +54,7 @@ export async function runInteractive(
       if (input === '/exit') { break; }
       if (input === '/help') { output.write(`${commands}\n`); }
       else if (input === '/clear') { conversation.clear(); output.write('已清空上下文。\n'); }
-      else if (input.startsWith('/') && !/^\/(apply|reject) [a-zA-Z0-9-]+$/.test(input)) { errors.write('未知命令，请输入 /help 查看帮助。\n'); }
+      else if (input.startsWith('/') && !/^\/(apply|reject|run) [a-zA-Z0-9-]+$/.test(input)) { errors.write('未知命令，请输入 /help 查看帮助。\n'); }
       else if (input.length > 0) {
         active = new AbortController();
         output.write('正在思考…\n');

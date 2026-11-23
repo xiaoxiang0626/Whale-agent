@@ -10,7 +10,7 @@ import { createProvider } from './providers/index.ts';
 import { runTask } from './task.ts';
 import { resolveAgentConfig } from './agent-config.ts';
 import { createReadOnlyTools } from './tools/read-only.ts';
-import { createEditingTools } from './tools/editing.ts';
+import { createCommandTools } from './tools/commands.ts';
 import { displayText } from './display.ts';
 
 const help = `my-coding-agent — 编码 Agent 学习项目
@@ -32,10 +32,10 @@ const help = `my-coding-agent — 编码 Agent 学习项目
 
 示例：my-coding-agent "解释这个项目"
 源码开发：pnpm dev "解释这个项目"
-交互命令：/help、/clear、/exit
+交互命令：/help、/clear、/exit、/apply 编号、/run 编号、/reject 编号
 
 默认使用 mock 离线演示；openai-compatible 可连接自己的模型 API。
-交互模式可预览文件修改，输入 /apply 编号 确认后写入；当前不执行命令。`;
+交互模式可预览文件修改和命令；/apply 编号 写入，/run 编号 执行。`;
 
 function parseInput() {
   try {
@@ -95,7 +95,8 @@ async function main(): Promise<void> {
     ...(values['max-steps'] === undefined ? {} : { maxSteps: values['max-steps'] }),
   }, process.cwd());
   const options = { maxSteps: agentConfig.maxSteps,
-    ...(values['no-tools'] === true ? {} : { tools: await (interactive && values['read-only'] !== true ? createEditingTools : createReadOnlyTools)(agentConfig.workspace) }),
+    ...(values['no-tools'] === true ? {} : { tools: await (interactive && values['read-only'] !== true
+      ? createCommandTools(agentConfig.workspace, config.provider === 'openai-compatible' ? [config.apiKey] : []) : createReadOnlyTools(agentConfig.workspace)) }),
   };
   if (interactive) {
     if (values.plain !== true && process.stdin.isTTY === true && process.stdout.isTTY === true) {
