@@ -12,8 +12,8 @@
 
 ## 阅读顺序
 
-1. [当时的像素数据与调色板](https://github.com/xiaoxiang0626/my-coding-agent/blob/334b8f03609ca1a3dd1d58a3954c424d0beeac04/src/mascot-art.ts)。
-2. [当时的尺寸、颜色与 ASCII 渲染](https://github.com/xiaoxiang0626/my-coding-agent/blob/334b8f03609ca1a3dd1d58a3954c424d0beeac04/src/mascot.ts)。
+1. [当时的像素数据与调色板](https://github.com/xiaoxiang0626/Whale-agent/blob/334b8f03609ca1a3dd1d58a3954c424d0beeac04/src/mascot-art.ts)。
+2. [当时的尺寸、颜色与 ASCII 渲染](https://github.com/xiaoxiang0626/Whale-agent/blob/334b8f03609ca1a3dd1d58a3954c424d0beeac04/src/mascot.ts)。
 3. [交互入口](../../src/interactive.ts)中的终端能力读取。
 4. [CLI 集成测试](../../tests/cli.test.ts)中的交互形象与单次输出检查。
 
