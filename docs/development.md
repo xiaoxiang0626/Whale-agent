@@ -38,21 +38,26 @@ my-coding-agent "解释这个项目"
 
 ## 配置
 
-优先级：CLI 参数高于环境变量，环境变量高于默认值。显式空值会报错。
+优先级：CLI 参数高于已有环境变量，已有环境变量高于显式环境文件，最后使用适配器默认值。显式空值会报错。
 
 | CLI 参数 | 环境变量 | 默认值 | 当前含义 |
 | --- | --- | --- | --- |
-| `--provider` | `CODING_AGENT_PROVIDER` | `mock` | 仅支持离线模拟适配器 |
-| `--model` | `CODING_AGENT_MODEL` | `mock-v1` | 传给适配器；模拟适配器不运行该模型 |
+| `--provider` | `CODING_AGENT_PROVIDER` | `mock` | `mock` 或 `openai-compatible` |
+| `--model` | `CODING_AGENT_MODEL` | 模拟模式为 `mock-v1` | 真实接口须显式提供模型名 |
+| `--base-url` | `CODING_AGENT_BASE_URL` | 无 | 真实接口基础地址，保留其路径 |
+| 无 | `CODING_AGENT_API_KEY` | 无 | 真实接口的 Bearer 密钥，只从本地环境读取 |
+| 无 | `CODING_AGENT_TIMEOUT_MS` | `30000` | 真实请求超时，单位毫秒 |
+| 无 | `CODING_AGENT_MAX_RESPONSE_BYTES` | `1048576` | 真实接口响应正文的字节上限 |
 
-`pnpm dev` 不自动加载 `.env`。需要文件配置时，可在 PowerShell 中运行：
+超时和响应字节上限均须为 1 至 2147483647 的整数。基础地址只接受 HTTP 或 HTTPS，不能携带凭据、查询参数或片段。
 
-```powershell
-Copy-Item .env.example .env
-node --env-file=.env src/cli.ts "测试配置"
+命令不自动加载 `.env`。使用示例文件验证离线配置：
+
+```sh
+my-coding-agent --env .env.example "检查环境文件"
 ```
 
-`.env` 被 Git 忽略。示例文件当前只包含模拟适配器配置；真实 API 的字段在适配器接入时定义。
+自己的配置文件通过 `--env .env` 指定，也可继续使用 Node.js 自带的 `node --env-file=.env src/cli.ts "任务"`。`.env` 被 Git 忽略；已有本地配置文件无需覆盖。真实服务的配置示例、协议与限制见[模型 API](model-api.md)。
 
 ## 错误与取消
 
@@ -64,14 +69,18 @@ node --env-file=.env src/cli.ts "测试配置"
 | provider 未支持或模型名为空 | `INVALID_CONFIG`，退出码 1 |
 | 运行期间收到 Ctrl+C | 传递取消信号，退出码 130 |
 | 未分类异常 | CLI 展示通用失败提示，退出码 1 |
+| 认证失败或限流 | `AUTHENTICATION_FAILED` 或 `RATE_LIMITED`，退出码 1 |
+| 服务端错误或网络失败 | `API_ERROR` 或 `NETWORK_ERROR`，退出码 1 |
+| 模型 API 超时 | `REQUEST_TIMEOUT`，退出码 1 |
+| 无效、不完整或过大的响应 | `INVALID_RESPONSE`，退出码 1 |
 
-CLI 不打印任意异常的完整内容。当前模拟调用立即完成，取消行为主要通过任务层的确定性测试验证。
+CLI 不打印任意异常的完整内容。模拟调用立即完成；HTTP 适配器的超时和取消通过本地服务验证，不依赖外部网络。
 
 ## 接入真实 API 时修改哪里
 
-在 `src/providers/` 新增 `ModelProvider` 实现，由它把 `ModelRequest` 转成服务商请求，并验证外部响应后返回 `ModelResponse`。同时扩展配置解析和 CLI 中的适配器选择。`runTask()` 继续接收同一接口。
+新增协议时在 `src/providers/` 实现 `ModelProvider`，由它把 `ModelRequest` 转成服务商请求，并验证外部响应后返回 `ModelResponse`。同时扩展配置解析和适配器工厂。`runTask()` 继续接收同一接口。
 
-接入前先确定协议、认证方式、Base URL 和模型名。接入 PR 需要测试请求转换、响应解析、超时、取消和服务端错误；日志不得包含 API Key。当前未实现自动重试。
+接入前先确定协议、认证方式、Base URL 和模型名。接入 PR 需要测试请求转换、响应解析、超时、取消和服务端错误；日志不得包含 API Key。现有 OpenAI 兼容实现可作为参考，当前没有自动重试。
 
 ## 验证范围
 
